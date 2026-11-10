@@ -20,5 +20,5 @@
     <string name="share_files_only">请选择文件或照片，而不是纯文本或链接。</string>
     <string name="disable_warning">禁用模块？这将断开 Tailscale 并暂停自动接收文件。</string>
     <string name="restart_warning">重启模块？这将暂时断开 Tailscale。</string>
-    <string name="error">操作无法完成</string><string name="language">English</string>
+    <string name="error">操作无法完成</string>
 </resources>

@@ -1,31 +1,25 @@
 package io.github.bioluks.tailscaled;
 
-import android.Manifest;
 import android.app.*;
 import android.content.*;
-import android.content.pm.*;
-import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.*;
-import android.provider.Settings;
 import android.view.*;
 import android.widget.*;
 import org.json.*;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private final ArrayList<Uri> files = new ArrayList<>();
     private LinearLayout content;
     private TextView status;
     private TextView result;
     private final ArrayList<Button> controls = new ArrayList<>();
     private String panelUrl = "http://127.0.0.1:8088/";
-    private String directTarget;
     private boolean busy;
-    private boolean selectionPending;
+    private String displayedLanguage;
     private final SharedPreferences.OnSharedPreferenceChangeListener transferListener = (preferences, key) -> {
         if ("transferRevision".equals(key)) {
             result.setText(preferences.getString("lastTransfer", ""));
@@ -37,6 +31,7 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        displayedLanguage = AppLocale.language(this);
         ScrollView scroll = new ScrollView(this);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -50,7 +45,7 @@ public final class MainActivity extends Activity {
         });
         TextView title = text(getString(R.string.app_name), 24);
         if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
-        button(R.string.language, () -> { AppLocale.toggle(this); recreate(); });
+        button(R.string.settings_title, () -> startActivity(new Intent(this, SettingsActivity.class)));
         text(getString(R.string.idle_note), 14);
         status = text(getString(R.string.working), 16);
         button(R.string.refresh, () -> load("status-json"));
@@ -66,16 +61,8 @@ public final class MainActivity extends Activity {
             catch (ActivityNotFoundException e) { showError(e); }
         });
         button(R.string.send_files, this::pickFiles);
-        button(R.string.notifications, this::allowNotifications);
-        if (!getSystemService(NotificationManager.class).areNotificationsEnabled()) text(getString(R.string.notification_off), 14);
         result = text(getSharedPreferences("companion", 0).getString("lastTransfer", ""), 14);
-        if (saved != null) {
-            ArrayList<Uri> restored = saved.getParcelableArrayList("files");
-            if (restored != null) files.addAll(restored);
-            directTarget = saved.getString("directTarget");
-        } else readShare(getIntent());
-        if (!files.isEmpty()) chooseTargets();
-        else load("status-json");
+        load("status-json");
     }
 
     private TextView text(String value, int size) {
@@ -139,11 +126,9 @@ public final class MainActivity extends Activity {
                         new AlertDialog.Builder(this).setTitle(R.string.logs).setView(scroll)
                                 .setPositiveButton(android.R.string.ok, null).show();
                     }
-                    if (selectionPending) chooseTargets();
                 });
             } catch (Exception e) { runOnUiThread(() -> { if (!isDestroyed()) {
                 setBusy(false); status.setText(getString(R.string.error) + "\n" + e.getMessage());
-                if (selectionPending) chooseTargets();
             } }); }
         });
     }
@@ -168,22 +153,6 @@ public final class MainActivity extends Activity {
         } catch (JSONException e) { status.setText(getString(R.string.error) + "\n" + e.getMessage()); }
     }
 
-    private void readShare(Intent intent) {
-        String action = intent.getAction();
-        if (!Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action)) return;
-        directTarget = intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID);
-        if (Intent.ACTION_SEND.equals(action)) addUri(intent.getParcelableExtra(Intent.EXTRA_STREAM));
-        else {
-            ArrayList<Uri> incoming = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-            if (incoming != null) for (Uri uri : incoming) addUri(uri);
-        }
-        if (files.isEmpty() && intent.getClipData() != null)
-            for (int i = 0; i < intent.getClipData().getItemCount(); i++) addUri(intent.getClipData().getItemAt(i).getUri());
-        if (files.isEmpty()) Toast.makeText(this, R.string.share_files_only, Toast.LENGTH_LONG).show();
-    }
-    private void addUri(Uri uri) {
-        if (uri != null && "content".equals(uri.getScheme()) && !files.contains(uri)) files.add(uri);
-    }
     private void pickFiles() {
         Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
                 .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
@@ -192,86 +161,28 @@ public final class MainActivity extends Activity {
     @Override protected void onActivityResult(int request, int code, Intent data) {
         super.onActivityResult(request, code, data);
         if (request != 1 || code != RESULT_OK || data == null) return;
-        files.clear(); directTarget = null;
-        if (data.getClipData() != null) for (int i = 0; i < data.getClipData().getItemCount(); i++)
-            addUri(data.getClipData().getItemAt(i).getUri());
-        else addUri(data.getData());
-        if (!files.isEmpty()) chooseTargets();
-    }
-    private void chooseTargets() {
-        if (busy) { selectionPending = true; return; }
-        selectionPending = false;
-        if (SendService.active) { Toast.makeText(this, R.string.transfer_busy, Toast.LENGTH_LONG).show(); return; }
-        setBusy(true);
-        worker.execute(() -> {
-            try {
-                String output = RootCommand.run("taildrop-targets");
-                ArrayList<String> ips = new ArrayList<>();
-                ArrayList<String> labels = new ArrayList<>();
-                for (String line : output.split("\n")) {
-                    String[] fields = line.trim().split("\\s+", 3);
-                    if (fields.length >= 2 && fields[0].matches("[0-9.]{7,15}")) {
-                        ips.add(fields[0]); labels.add(fields[1] + (fields.length == 3 ? " · " + fields[2] : ""));
-                    }
-                }
-                runOnUiThread(() -> {
-                    if (isDestroyed()) return;
-                    setBusy(false);
-                    publishShortcuts(ips, labels);
-                    if (ips.isEmpty()) { status.setText(R.string.no_targets); return; }
-                    if (directTarget != null) {
-                        int index = ips.indexOf(directTarget);
-                        directTarget = null;
-                        if (index < 0) { status.setText(R.string.no_targets); return; }
-                        confirmSend(ips.get(index), labels.get(index));
-                    } else new AlertDialog.Builder(this).setTitle(R.string.choose_device)
-                            .setItems(labels.toArray(new String[0]), (d, index) -> confirmSend(ips.get(index), labels.get(index)))
-                            .setNegativeButton(R.string.cancel, (d, w) -> files.clear()).show();
-                });
-            } catch (Exception e) { runOnUiThread(() -> { if (!isDestroyed()) { setBusy(false); showError(e); } }); }
-        });
-    }
-    private void confirmSend(String ip, String label) {
-        new AlertDialog.Builder(this).setTitle(R.string.send)
-                .setMessage(getString(R.string.confirm_send, files.size(), label))
-                .setNegativeButton(R.string.cancel, (d, w) -> files.clear())
-                .setPositiveButton(R.string.send, (d, w) -> {
-                    if (SendService.active) { Toast.makeText(this, R.string.transfer_busy, Toast.LENGTH_LONG).show(); return; }
-                    Intent send = new Intent(this, SendService.class).putExtra("target", ip).putExtra("label", label)
-                            .putParcelableArrayListExtra("files", new ArrayList<>(files));
-                    ClipData clip = ClipData.newRawUri("Taildrop", files.get(0));
-                    for (int i = 1; i < files.size(); i++) clip.addItem(new ClipData.Item(files.get(i)));
-                    send.setClipData(clip); send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    try { startForegroundService(send); files.clear(); status.setText(getString(R.string.sending, label)); }
-                    catch (RuntimeException e) { showError(e); }
-                }).show();
-    }
-    private void publishShortcuts(ArrayList<String> ips, ArrayList<String> labels) {
-        if (Build.VERSION.SDK_INT < 29) return;
-        ShortcutManager manager = getSystemService(ShortcutManager.class);
-        ArrayList<ShortcutInfo> shortcuts = new ArrayList<>();
-        for (int i = 0; i < Math.min(ips.size(), manager.getMaxShortcutCountPerActivity()); i++) {
-            Intent launch = new Intent(this, MainActivity.class).setAction(Intent.ACTION_MAIN);
-            shortcuts.add(new ShortcutInfo.Builder(this, ips.get(i)).setShortLabel(labels.get(i))
-                    .setLongLabel(labels.get(i)).setIcon(Icon.createWithResource(this, R.drawable.ic_module))
-                    .setCategories(Collections.singleton("io.github.bioluks.tailscaled.FILE_TARGET"))
-                    .setLongLived(true).setIntent(launch).build());
+        Intent share = new Intent(this, ShareActivity.class).setAction(Intent.ACTION_SEND_MULTIPLE)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        ArrayList<Uri> selected = new ArrayList<>();
+        ClipData clip = data.getClipData();
+        if (clip != null) {
+            for (int i = 0; i < clip.getItemCount(); i++) selected.add(clip.getItemAt(i).getUri());
+        } else if (data.getData() != null) {
+            selected.add(data.getData());
+            clip = ClipData.newRawUri("Taildrop", data.getData());
         }
-        try { manager.setDynamicShortcuts(shortcuts); } catch (IllegalArgumentException ignored) { }
-    }
-    private void allowNotifications() {
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 2);
-        else startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
+        if (!selected.isEmpty()) {
+            share.putParcelableArrayListExtra(Intent.EXTRA_STREAM, selected).setClipData(clip);
+            startActivity(share);
+        }
     }
     private void showError(Exception error) {
         new AlertDialog.Builder(this).setTitle(R.string.error).setMessage(error.getMessage())
                 .setPositiveButton(android.R.string.ok, null).show();
     }
-    @Override public void onSaveInstanceState(Bundle state) {
-        super.onSaveInstanceState(state);
-        state.putParcelableArrayList("files", files);
-        state.putString("directTarget", directTarget);
+    @Override protected void onResume() {
+        super.onResume();
+        if (!AppLocale.language(this).equals(displayedLanguage)) recreate();
     }
     @Override protected void onStart() {
         super.onStart();

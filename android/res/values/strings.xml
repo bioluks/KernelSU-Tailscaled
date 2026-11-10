@@ -32,5 +32,4 @@
     <string name="disable_warning">Disable the module? This disconnects Tailscale and pauses automatic file delivery.</string>
     <string name="restart_warning">Restart the module? This briefly disconnects Tailscale.</string>
     <string name="error">Could not complete the operation</string>
-    <string name="language">简体中文</string>
 </resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_preparing_file">Preparing file %1$d/%2$d…</string>
+    <string name="transfer_file">%1$d/%2$d · %3$s</string>
+    <string name="transfer_rate_kb">%1$.1f KB/s</string>
+    <string name="transfer_rate_mb">%1$.1f MB/s</string>
+    <string name="transfer_known_size">%1$s / %2$s · %3$s</string>
+    <string name="transfer_unknown_size">%1$s · %2$s · Size unknown</string>
+    <string name="transfer_finalizing">Finalizing… · %1$s</string>
+</resources>

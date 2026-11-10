@@ -14,6 +14,7 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.OpenableColumns;
+import android.text.format.Formatter;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,7 +30,11 @@ public final class SendService extends Service {
     private Context localized;
     private NotificationManager notifications;
     private String target;
-    private long lastProgress;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshProgress = this::updateProgress;
+    private volatile TransferProgress transferProgress;
+    private volatile String preparingFile;
+    private String notificationLabel;
     private CancellationSignal sourceCancellation;
     private int latestStartId;
 
@@ -57,33 +62,73 @@ public final class SendService extends Service {
         active = true;
         cancelled = false;
         sourceCancellation = new CancellationSignal();
-        Notification notification = progress(label == null ? target : label, "", 0, true);
+        notificationLabel = label == null ? target : label;
+        preparingFile = localized.getString(R.string.transfer_preparing_file, 1, files.size());
+        transferProgress = null;
+        Notification notification = progress(notificationLabel, preparingFile, "", 0, true);
         if (Build.VERSION.SDK_INT >= 29) startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         else startForeground(1, notification);
         wake = getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 "tailscaled:send");
         wake.acquire(6 * 60 * 60 * 1000L);
+        mainHandler.postDelayed(refreshProgress, 500);
         new Thread(() -> transfer(files, label == null ? target : label), "taildrop-send").start();
         return START_NOT_STICKY;
     }
 
-    private Notification progress(String label, String detail, int percent, boolean indeterminate) {
+    private Notification progress(String label, String file, String detail, int percent, boolean indeterminate) {
         PendingIntent cancel = PendingIntent.getService(this, 1, new Intent(this, SendService.class)
                 .setAction(CANCEL), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        String expanded = detail.isEmpty() ? file : file + "\n" + detail;
         return new Notification.Builder(localized, "sending").setSmallIcon(R.drawable.ic_module)
-                .setContentTitle(localized.getString(R.string.sending, label)).setContentText(detail)
+                .setContentTitle(localized.getString(R.string.sending, label))
+                .setSubText(file).setContentText(detail.isEmpty() ? file : detail)
+                .setStyle(new Notification.BigTextStyle().bigText(expanded))
+                .setContentIntent(open)
                 .setProgress(100, percent, indeterminate).setOngoing(true).setOnlyAlertOnce(true)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .addAction(new Notification.Action.Builder(null, localized.getString(R.string.cancel), cancel).build())
                 .build();
     }
 
+    private void updateProgress() {
+        if (!active || cancelled) return;
+        TransferProgress current = transferProgress;
+        if (current == null) {
+            notifications.notify(1, progress(notificationLabel, preparingFile, "", 0, true));
+        } else {
+            current.sample(SystemClock.elapsedRealtime());
+            notifications.notify(1, progress(notificationLabel, current.fileLabel, transferDetail(current),
+                    current.percent(), current.totalBytes() <= 0 || current.isFinalizing()));
+        }
+        // Sampling continues even while a provider, pipe write, or CLI exit is blocked.
+        mainHandler.postDelayed(refreshProgress, 500);
+    }
+
+    private String transferDetail(TransferProgress current) {
+        double rate = current.bytesPerSecond();
+        String speed = localized.getString(rate >= 1000000 ? R.string.transfer_rate_mb : R.string.transfer_rate_kb,
+                rate / (rate >= 1000000 ? 1000000 : 1000));
+        String sent = Formatter.formatShortFileSize(localized, current.sentBytes());
+        long total = current.totalBytes();
+        String detail = total < 0
+                ? localized.getString(R.string.transfer_unknown_size, sent, speed)
+                : localized.getString(R.string.transfer_known_size, sent,
+                        Formatter.formatShortFileSize(localized, total), speed);
+        return current.isFinalizing() ? localized.getString(R.string.transfer_finalizing, detail) : detail;
+    }
+
     private void transfer(ArrayList<Uri> files, String label) {
         String title;
         String detail = label;
+        byte[] buffer = new byte[65536];
         try {
             for (int index = 0; index < files.size(); index++) {
                 if (cancelled) throw new IOException("Cancelled");
+                preparingFile = localized.getString(R.string.transfer_preparing_file, index + 1, files.size());
+                transferProgress = null;
                 Uri uri = files.get(index);
                 if (!"content".equals(uri.getScheme())) throw new IOException("Only granted content URIs are supported");
                 String name = "shared-file";
@@ -97,6 +142,7 @@ public final class SendService extends Service {
                     }
                 }
                 name = safeName(name);
+                preparingFile = localized.getString(R.string.transfer_file, index + 1, files.size(), name);
                 sourceCancellation.throwIfCanceled();
                 AssetFileDescriptor descriptor = getContentResolver().openAssetFileDescriptor(uri, "r", sourceCancellation);
                 if (descriptor == null) throw new IOException("Shared file is unavailable");
@@ -117,20 +163,15 @@ public final class SendService extends Service {
                 RootCommand.Capture output = new RootCommand.Capture(reply);
                 try (InputStream input = source; OutputStream upload = process.getOutputStream()) {
                     upload.write((target + "\n" + name + "\n").getBytes(StandardCharsets.UTF_8));
-                    byte[] buffer = new byte[65536];
-                    long sent = 0;
+                    TransferProgress current = new TransferProgress(preparingFile, size, SystemClock.elapsedRealtime());
+                    transferProgress = current;
                     int count;
                     while ((count = input.read(buffer)) != -1) {
                         if (cancelled) throw new IOException("Cancelled");
                         upload.write(buffer, 0, count);
-                        sent += count;
-                        long now = SystemClock.elapsedRealtime();
-                        if (now - lastProgress >= 500) {
-                            lastProgress = now;
-                            notifications.notify(1, progress(label, (index + 1) + "/" + files.size() + " · " + name,
-                                    size > 0 ? (int) Math.min(100, sent * 100 / size) : 0, size <= 0));
-                        }
+                        current.addBytes(count);
                     }
+                    current.finishInput();
                 }
                 source = null;
                 int exit = process.waitFor();
@@ -150,7 +191,9 @@ public final class SendService extends Service {
         }
         String completedTitle = title;
         String completedDetail = detail;
-        new Handler(Looper.getMainLooper()).post(() -> {
+        mainHandler.post(() -> {
+            mainHandler.removeCallbacks(refreshProgress);
+            transferProgress = null;
             stopForeground(STOP_FOREGROUND_REMOVE);
             if (wake != null && wake.isHeld()) wake.release();
             PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
@@ -182,6 +225,7 @@ public final class SendService extends Service {
     }
     private void cancel() {
         cancelled = true;
+        mainHandler.removeCallbacks(refreshProgress);
         CancellationSignal signal = sourceCancellation;
         String identity = rootPid;
         InputStream input = source;
@@ -195,6 +239,7 @@ public final class SendService extends Service {
     }
     @Override public void onTimeout(int startId, int type) { cancel(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); }
     @Override public void onDestroy() {
+        mainHandler.removeCallbacks(refreshProgress);
         if (active) cancel();
         if (wake != null && wake.isHeld()) wake.release();
         super.onDestroy();

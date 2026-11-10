@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">设置</string>
+    <string name="settings_back">返回</string>
+    <string name="settings_preferences">偏好设置</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_zh">简体中文</string>
+    <string name="settings_confirm_send">发送前确认</string>
+    <string name="settings_confirm_summary">开始传输前，再次确认所选设备和文件。默认关闭。</string>
+    <string name="settings_notifications">通知</string>
+    <string name="settings_receive_notifications">文件接收通知</string>
+    <string name="settings_notifications_on">已开启 · 前往 Android 设置管理</string>
+    <string name="settings_notifications_off">已关闭 · 点按前往 Android 设置开启</string>
+    <string name="settings_notifications_note">关闭通知后，文件仍会保存到模块选定的文件夹。</string>
+</resources>

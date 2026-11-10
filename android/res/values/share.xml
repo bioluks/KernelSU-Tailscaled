@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_title">Send with Taildrop</string>
+    <string name="share_subtitle">Choose a device</string>
+    <plurals name="share_file_count"><item quantity="one">%d file selected</item><item quantity="other">%d files selected</item></plurals>
+    <string name="share_hint">Tap a device to send</string>
+    <string name="share_hint_confirm">Tap a device to review your send</string>
+    <string name="share_loading">Loading your devices…</string>
+    <string name="share_retry">Try again</string>
+    <string name="share_confirm_title">Ready to send?</string>
+    <string name="share_other_device">Choose another device</string>
+    <string name="share_close">Close sharing</string>
+</resources>

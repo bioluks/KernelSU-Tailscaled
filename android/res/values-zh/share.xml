@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_title">通过 Taildrop 发送</string>
+    <string name="share_subtitle">选择设备</string>
+    <plurals name="share_file_count"><item quantity="other">已选择 %d 个文件</item></plurals>
+    <string name="share_hint">点按设备即可发送</string>
+    <string name="share_hint_confirm">点按设备以确认发送</string>
+    <string name="share_loading">正在加载设备…</string>
+    <string name="share_retry">重试</string>
+    <string name="share_confirm_title">准备好发送了吗？</string>
+    <string name="share_other_device">选择其他设备</string>
+    <string name="share_close">关闭分享</string>
+</resources>
