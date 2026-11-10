@@ -7,22 +7,55 @@
 # KernelSU-Tailscaled
 
 Run the official Tailscale daemon on rooted Android without occupying Android's
-VPN slot. KernelSU-first module with a local WebUI, serialized lifecycle control,
-diagnostic health checks, explicit legacy migration, and verified runtime updates.
+VPN slot. This fork extends the upstream KernelSU module with a native Android
+companion, system-share integration, automatic Taildrop delivery, English/Chinese
+interfaces, integrated Headscale sign-in, and lower-overhead supervision.
 
-Version **3.1.0** refines Android sharing with a floating device sheet, live
-transfer details, and a dedicated Settings page. The optional companion shares
-Taildrop files, controls the module, and reports completed receives. English
-is the default; Simplified Chinese, Headscale and automatic receiving remain supported.
+Download the [latest stable module and optional companion APK](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
+The module works on its own; the companion adds native controls and Android file
+sharing using the same connection, without another VPN, daemon or login.
 
-Download the [latest published stable release](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
-The legacy Magisk-Tailscaled v1 release and update channel are retired. Only the
-`kernelsu-tailscaled` module line is maintained. Official store review is separate.
-Based on [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled)
-and `ryukora/Magisk-Tailscaled`, with upstream credits and licensing retained.
-Maintained here by bioluks; not an official Tailscale or KernelSU product. The
-daemon remains the official Tailscale 1.104.2 binary; this repository contains
-the Android module and companion integration. No device-specific kernel is included.
+## What This Fork Adds
+
+Compared with the [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled)
+base, the changes extend everyday use, not just installation or bug fixes:
+
+| Area | Added in this fork |
+| --- | --- |
+| **Native Android companion** | Optional Android 8.0+ app with module status, enable/disable, restart, logs and access to the full local panel. No idle app polling, boot service or second Tailscale connection. |
+| **Android file sharing** | Send one or multiple files from Files, Photos and other apps, or use the in-app document picker. A rounded device sheet keeps the source app visible behind a dimmed overlay. Tap to send immediately, or enable optional confirmation. Android 10+ Direct Share shortcuts expose eligible peers when Android chooses to show them. |
+| **Transfer feedback** | Cancellable background sends with per-file sent/total bytes, current KB/s or MB/s, and a separate finalizing state. Files stream from granted content URIs without whole-file cache copies. Optional receive notifications report completed saves. |
+| **Automatic Taildrop receiving** | Native-mode receiving into Downloads or a WebUI-selected shared-storage folder. One event-driven, supervised receiver; no periodic inbox scan. Duplicate names are preserved, failed saves remain queued, and folder changes restart only the receiver. Delivery works without the companion installed or running. |
+| **English and Chinese interfaces** | English by default in both the WebUI and companion, with remembered Simplified Chinese selection. The WebUI has a language selector; the app has a dedicated Settings page, including send-confirmation and receive-notification controls. |
+| **Integrated Headscale sign-in** | A custom control-server URL and explicit registration flow in the WebUI, with confirmation before switching servers. Uses the official engine's existing Headscale support and retains other network preferences; no manual login command is needed for this flow. |
+| **Lower idle supervisor overhead** | Fewer external process/property lookups, time-bounded status probes, less frequent Manager metadata work and no unchanged-description rewrites. Process recovery remains active even before login. The measured reduction is in supervisor CPU, not a claimed battery-life improvement. |
+| **Companion release integration** | A separately installable, release-signed APK alongside universal, ARM64 and ARM module ZIPs. Release gates check APK signing, reproducible unsigned APK bytes and the exact four-asset release set. |
+
+Usage and limits: [Taildrop](#taildrop-on-android),
+[Android companion](#optional-android-companion),
+[language and Headscale](#webui-language-and-headscale), and
+[runtime behavior and CPU measurements](#runtime-and-configuration).
+Headscale servers must advertise file sharing for Taildrop. Send progress counts
+bytes passed to the CLI, not remote acknowledgements; success waits for CLI exit.
+
+### The Upstream Foundation Is Retained
+
+The KernelSU WebUI, native TUN mode, explicit userspace option, verified engine
+updates without an Android reboot, isolated persistent state, serialized
+lifecycle control, process-ownership checks, diagnostics, recoverable migration
+and reproducible module ZIPs already come from the upstream KernelSU project.
+They remain part of this version; they are not presented as new fork-only work.
+Compared with the older [ryukora/Magisk-Tailscaled](https://github.com/ryukora/Magisk-Tailscaled)
+line, this also means native TUN networking and integrated management rather
+than its documented userspace/proxy-based, terminal-led setup.
+
+Based on those projects, with upstream credits and licensing retained. Maintained
+here by bioluks; not an official Tailscale or KernelSU product. The daemon remains
+the official Tailscale 1.104.2 binary; the additions are in the Android module and
+companion integration, not a custom Tailscale engine or device-specific kernel.
+The legacy Magisk-Tailscaled v1 update channel is retired; only the
+`kernelsu-tailscaled` module line is maintained here. Official store review is
+separate.
 
 ## Identity And Compatibility
 
