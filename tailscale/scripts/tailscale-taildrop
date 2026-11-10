@@ -26,7 +26,7 @@ taildrop_start() (
     exit 1
   fi
   launch_logged taildrop "$TAILDROP_PID" "$TAILSCALE_BIN" --conflict=rename \
-    "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file get --loop --conflict=rename . || exit 1
+    "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file get --verbose --loop --conflict=rename . || exit 1
   if ! taildrop_health; then
     taildrop_stop || exit 1
     log WARN 'Taildrop receiver did not remain running; inspect taildrop.log; queued files remain in the private inbox'

@@ -1,3 +1,15 @@
+v2.3.0 (bioluks fork)
+
+- Add an optional native Android companion: share files to eligible Taildrop
+  devices, select files within the app, and control the existing module.
+- Reuse the module login, effective engine and socket; no Android VPN slot,
+  second daemon or idle app polling. Stream files without full cache copies.
+- Show a cancellable foreground notification only during sends and optional
+  completed-receive notifications. Automatic delivery works without the APK.
+- Keep English as the default with a remembered Chinese language switch.
+- Publish a separately installable, release-signed APK alongside the three
+  verified module ZIPs. VersionCode 20000026 upgrades earlier private candidates.
+
 v2.2.0 (bioluks fork)
 
 - Automatically save Taildrop files to /sdcard/Download or a shared-storage

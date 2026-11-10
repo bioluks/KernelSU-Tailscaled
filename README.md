@@ -10,10 +10,10 @@ Run the official Tailscale daemon on rooted Android without occupying Android's
 VPN slot. KernelSU-first module with a local WebUI, serialized lifecycle control,
 diagnostic health checks, explicit legacy migration, and verified runtime updates.
 
-This is **bioluks's fork**, maintained on **all-features-merged**. Version **2.2.0**
-adds automatic Taildrop delivery to a WebUI-selected folder, alongside the
-English-default WebUI, Chinese language switch, Headscale sign-in and idle
-supervisor CPU improvements. See the [2.2.0 release notes](docs/releases/v2.2.0.md).
+This is **bioluks's fork**, maintained on **all-features-merged**. Version **2.3.0**
+adds an optional native Android companion for sharing files to Taildrop devices,
+simple module controls, and received-file notifications. The English-default
+WebUI, Chinese language switch, Headscale sign-in and automatic receiving remain.
 
 Download the [latest published stable release](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
 The legacy Magisk-Tailscaled v1 release and update channel are retired. Only the
@@ -66,7 +66,7 @@ module. The ID and persistent data directory are unchanged; do not uninstall or
 delete state first. The fork ZIP switches subsequent module update checks to
 this repository. Upstream installations do not automatically discover this fork;
 the first switch is a manual ZIP install. This includes the private `2.1.1-dev.1`
-combined build (`versionCode=20000019`); release 2.2.0 advances to 20000024.
+combined build (`versionCode=20000019`); release 2.3.0 advances to 20000026.
 
 ## WebUI Language And Headscale
 
@@ -148,6 +148,42 @@ TS=/data/adb/kernelsu-tailscaled
 If you use Headscale instead of the official Tailscale service, your server must
 advertise the file-sharing capability. For general Taildrop setup and usage, see
 the [official documentation](https://tailscale.com/docs/features/taildrop).
+
+## Optional Android Companion
+
+Install `KernelSU-Tailscaled-companion-v2.3.0.apk` from the same GitHub release
+as the module. Requires Android 8.0 or newer and module **2.3.0 or newer**.
+Open **Tailscaled Companion** and grant it root access in KernelSU. The companion
+uses the module's effective Tailscale engine, socket and existing login; it does
+not create a VPN, second daemon or separate account connection.
+
+- In Files, Photos or another app, select one or more files and choose
+  **Share → Tailscaled Companion → device → Send**. Alternatively use
+  **Choose files to send** in the companion. Plain text and URL shares are not
+  converted into files. The picker lists the official Taildrop-eligible peers,
+  including offline annotations; your server must advertise file sharing.
+- Transfers stream directly from Android's granted content URI through the
+  existing CLI, without copying a complete file to an app cache. The foreground
+  notification is present only during an active send and offers **Cancel**.
+  Progress measures bytes supplied to the CLI; final success waits for its exit.
+  Transfers continue when you leave the activity. Android 15+ limits background
+  data-sync foreground services to six hours; a timeout cancels the send.
+- Eligible devices are also published as Android 10+ sharing shortcuts when the
+  device picker is loaded. Android controls whether and where Direct Share
+  suggestions appear; the in-app picker always remains available.
+- Native controls provide status, enable/disable, restart, logs and an external
+  browser link to the full loopback panel. Advanced settings stay in the WebUI.
+  The companion defaults to English; **简体中文 / English** remembers its language.
+- Choose **Allow receive notifications** to permit optional completed-file
+  notifications. Receiving and folder selection remain module-owned. Closing,
+  force-stopping, denying notifications or uninstalling the companion does not
+  stop automatic delivery. No app polling, boot service or second receiver runs.
+  Notifications describe successful saves, not incoming-transfer progress.
+
+The APK is optional, separately installed, and never silently installed by the
+module. It has no analytics, cloud service, auto-updater or broad storage access.
+Keep the same APK signer for upgrades; branch CI debug APKs use a different key
+and cannot replace the published release APK without uninstalling the app.
 
 ## Migrate An Existing Login
 

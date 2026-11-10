@@ -94,11 +94,71 @@ jobs:
           sha256sum dist/*.zip | sed 's#dist/##' > /tmp/second-build.sha256
           diff -u /tmp/first-build.sha256 /tmp/second-build.sha256
 
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Android SDK packages
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Build debug companion
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
+        run: |
+          python android/build.py --debug
+          cp android/build/companion-unsigned.apk "$RUNNER_TEMP/companion-first-unsigned.apk"
+          python android/build.py --debug
+          cmp "$RUNNER_TEMP/companion-first-unsigned.apk" android/build/companion-unsigned.apk
+
+      - name: Build signed release companion
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          ANDROID_BUILD_TOOLS_VERSION: "36.0.0"
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE: ${{ runner.temp }}/companion-release.keystore
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import base64, binascii, os
+          required = ('ANDROID_KEYSTORE_BASE64', 'ANDROID_KEY_ALIAS',
+                      'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_PASSWORD')
+          if any(not os.environ.get(name) for name in required):
+              raise SystemExit('Release signing secrets are required; refusing debug signing')
+          try:
+              keystore = base64.b64decode(os.environ['ANDROID_KEYSTORE_BASE64'], validate=True)
+          except (ValueError, binascii.Error):
+              raise SystemExit('Invalid release keystore encoding') from None
+          if not keystore:
+              raise SystemExit('Release keystore must not be empty')
+          fd = os.open(os.environ['ANDROID_KEYSTORE'], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(fd, 'wb') as stream:
+              stream.write(keystore)
+          PY
+          trap 'rm -f "$ANDROID_KEYSTORE"' EXIT
+          test "$GITHUB_REF_NAME" = "v$(sed -n 's/^version=//p' module.prop)"
+          python android/build.py
+          cp android/build/companion-unsigned.apk "$RUNNER_TEMP/companion-first-unsigned.apk"
+          python android/build.py
+          cmp "$RUNNER_TEMP/companion-first-unsigned.apk" android/build/companion-unsigned.apk
+
+      - name: Remove release signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/companion-release.keystore"
+
       - name: Upload verified packages
         uses: actions/upload-artifact@v7
         with:
           name: KernelSU-Tailscaled-packages
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.apk
           if-no-files-found: error
           retention-days: 14
 

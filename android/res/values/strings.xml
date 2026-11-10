@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tailscaled Companion</string>
+    <string name="status">Module status</string>
+    <string name="refresh">Refresh</string>
+    <string name="enable">Enable</string>
+    <string name="disable">Disable</string>
+    <string name="restart">Restart</string>
+    <string name="logs">Logs</string>
+    <string name="panel">Open full panel</string>
+    <string name="send_files">Choose files to send</string>
+    <string name="choose_device">Send to device</string>
+    <string name="send">Send</string>
+    <string name="cancel">Cancel</string>
+    <string name="working">Working…</string>
+    <string name="idle_note">Uses the installed KernelSU module. Root access is required. No VPN or second Tailscale connection. Nothing runs in this app while idle.</string>
+    <string name="notifications">Allow receive notifications</string>
+    <string name="notification_off">Notifications are disabled. Files still arrive in the module’s selected folder.</string>
+    <string name="no_targets">No Taildrop-capable devices. Connect the module and enable file sharing on your control server.</string>
+    <string name="confirm_send">Send %1$d file(s) to %2$s?</string>
+    <string name="sending">Sending to %1$s</string>
+    <string name="sent">Files sent to %1$s</string>
+    <string name="failed">Transfer failed</string>
+    <string name="cancelled">Transfer cancelled</string>
+    <string name="received">Taildrop file received</string>
+    <string name="received_note">Saved to the module’s selected folder.</string>
+    <string name="send_channel">Active file transfers</string>
+    <string name="receive_channel">Received files</string>
+    <string name="result_channel">Transfer results</string>
+    <string name="transfer_busy">A transfer is already running. Wait or cancel it from its notification.</string>
+    <string name="share_files_only">Share files or photos, not plain text or links.</string>
+    <string name="disable_warning">Disable the module? This disconnects Tailscale and pauses automatic file delivery.</string>
+    <string name="restart_warning">Restart the module? This briefly disconnects Tailscale.</string>
+    <string name="error">Could not complete the operation</string>
+    <string name="language">简体中文</string>
+</resources>

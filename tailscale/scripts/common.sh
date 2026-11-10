@@ -304,10 +304,17 @@ launch_logged() {
   rm -f "$fifo"
   mkfifo -m 0600 "$fifo" || return 1
   (exec 9>&- 8>&-; unset KST_LOCK_HELD
-    if [ -x "$KST_BUSYBOX" ]; then
-      exec "$KST_BUSYBOX" awk -v destination="$LOG_DIR/$name.log" -f "$SCRIPT_DIR/log-filter.awk" < "$fifo"
+    set --
+    if [ "$name" = taildrop ]; then
+      LC_ALL=C
+      export LC_ALL
+      set -- -v taildrop_notify=1 -f "$SCRIPT_DIR/taildrop-filter.awk"
+      [ ! -x "$KST_BUSYBOX" ] || set -- "$@" -v "taildrop_busybox=$KST_BUSYBOX"
     fi
-    exec awk -v destination="$LOG_DIR/$name.log" -f "$SCRIPT_DIR/log-filter.awk" < "$fifo"
+    if [ -x "$KST_BUSYBOX" ]; then
+      exec "$KST_BUSYBOX" awk "$@" -v destination="$LOG_DIR/$name.log" -f "$SCRIPT_DIR/log-filter.awk" < "$fifo"
+    fi
+    exec awk "$@" -v destination="$LOG_DIR/$name.log" -f "$SCRIPT_DIR/log-filter.awk" < "$fifo"
   ) </dev/null >/dev/null 2>&1 &
   logger=$!
   (exec 9>&- 8>&-; unset KST_LOCK_HELD; trap '' HUP; exec "$@" > "$fifo" 2>&1) </dev/null >/dev/null 2>&1 &

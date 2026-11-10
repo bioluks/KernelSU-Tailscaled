@@ -7,3 +7,10 @@ __pycache__/
 webroot-src/node_modules/
 webroot-src/dist/
 *.zip
+android/build/
+*.apk
+*.apk.idsig
+*.keystore
+*.jks
+*.p12
+*.pfx
