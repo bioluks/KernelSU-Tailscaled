@@ -10,20 +10,19 @@ Run the official Tailscale daemon on rooted Android without occupying Android's
 VPN slot. KernelSU-first module with a local WebUI, serialized lifecycle control,
 diagnostic health checks, explicit legacy migration, and verified runtime updates.
 
-**Independently maintained by bioluks**, with **all-features-merged** as the default
-development branch. Version **3.0.0** brings together the module and optional native
-Android companion: share files to Taildrop devices, control the module, and receive
-completed-file notifications. English is the default; Simplified Chinese,
-Headscale sign-in and automatic Taildrop receiving remain supported.
+Version **3.0.0** adds an optional native Android companion: share files to
+Taildrop devices, control the module, and receive completed-file notifications.
+English is the default; Simplified Chinese, Headscale sign-in and automatic
+Taildrop receiving remain supported.
 
 Download the [latest published stable release](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
 The legacy Magisk-Tailscaled v1 release and update channel are retired. Only the
 `kernelsu-tailscaled` module line is maintained. Official store review is separate.
-The project continues [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled),
-based on `ryukora/Magisk-Tailscaled`, and is maintained independently of upstream.
-It is not an official Tailscale or KernelSU product. The daemon remains the
-official Tailscale 1.104.2 binary; this project maintains the Android module and
-companion integration. No device-specific kernel is included.
+Based on [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled)
+and `ryukora/Magisk-Tailscaled`, with upstream credits and licensing retained.
+Maintained here by bioluks; not an official Tailscale or KernelSU product. The
+daemon remains the official Tailscale 1.104.2 binary; this repository contains
+the Android module and companion integration. No device-specific kernel is included.
 
 ## Identity And Compatibility
 
@@ -69,8 +68,7 @@ uninstall or delete state first. Installing this ZIP switches subsequent module
 update checks to this repository. Upstream installations do not automatically
 discover this project's releases; the first switch is a manual ZIP install.
 Version **3.0.0** uses `versionCode=30000000`, advancing earlier published and
-private combined builds. The major version marks independent maintenance and the
-Android companion, not a login migration or incompatible data-format change.
+private combined builds. Existing login state and data formats are unchanged.
 
 ## WebUI Language And Headscale
 

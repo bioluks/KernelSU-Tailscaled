@@ -1,7 +1,5 @@
 v3.0.0 (bioluks)
 
-- Establish the independently maintained project with the Android companion as
-  the 3.0 release. Preserve upstream attribution and existing installation paths.
 - Add an optional native Android companion: share files to eligible Taildrop
   devices, select files within the app, and control the existing module.
 - Reuse the module login, effective engine and socket; no Android VPN slot,
