@@ -1,0 +1,7 @@
+{
+  "id": "io.github.bioluks.tailscaled",
+  "url": "https://github.com/bioluks/KernelSU-Tailscaled",
+  "author": "bioluks",
+  "name": "KernelSU-Tailscaled",
+  "additionalSettings": "{\"includePrereleases\":false,\"includeDrafts\":false,\"includeZips\":false,\"apkFilterRegEx\":\"^KernelSU-Tailscaled-companion-v[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.apk$\"}"
+}

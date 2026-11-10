@@ -15,6 +15,12 @@ Download the [latest stable module and optional companion APK](https://github.co
 The module works on its own; the companion adds native controls and Android file
 sharing using the same connection, without another VPN, daemon or login.
 
+Independent Forgejo source and releases:
+[GitScape](https://git.dreamscape.one/execd/KernelSU-Tailscaled).
+For companion-only automatic updates, use the
+[F-Droid repositories or Obtainium imports](docs/distribution/companion-updates.md).
+These channels do not install or update the KernelSU module.
+
 ## What This Fork Adds
 
 Compared with the [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled)
@@ -363,8 +369,13 @@ using the original tag and build run ID without rebuilding packages or moving
 the tag. It verifies the successful build's commit and all existing draft assets
 before publishing; already published immutable assets are verified, not replaced.
 
-Project releases are distributed on this repository's GitHub Releases page. The
-upstream store submission is historical and does not approve this independently
+Project releases are available independently on
+[GitHub](https://github.com/bioluks/KernelSU-Tailscaled/releases) and
+[GitScape](https://git.dreamscape.one/execd/KernelSU-Tailscaled/releases).
+Neither Forgejo repository is a mirror; source changes and accepted releases are
+published explicitly. Companion F-Droid channels refresh stable APKs from their
+own host. See [update channels and maintenance](docs/distribution/companion-updates.md).
+The upstream store submission is historical and does not approve this independently
 maintained project; store publication remains disabled unless separately reviewed
 and authorized.
 

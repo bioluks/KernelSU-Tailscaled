@@ -1,3 +1,10 @@
+Distribution updates (no APK/module version change)
+
+- Publish independently signed GitHub Pages and Forgejo F-Droid repositories
+  for stable companion APK updates, preserving the existing Android signer.
+- Publish independent Forgejo source/releases and add stable APK-only Obtainium
+  imports for both hosts. Module installation and update channels are unchanged.
+
 v3.1.0 (bioluks)
 
 - Show Android shares in a rounded bottom sheet over the dimmed source app,
