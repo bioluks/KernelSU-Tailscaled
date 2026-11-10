@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing v2 tag to publish
+        description: Existing v3 tag to publish
         required: true
         type: string
       build_run_id:
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   publish:
     if: >-
-      startsWith(inputs.tag, 'v2.') &&
+      startsWith(inputs.tag, 'v3.') &&
       (contains(inputs.tag, '-') || vars.STABLE_RELEASE_APPROVED == 'true')
     runs-on: ubuntu-latest
     environment: source-release

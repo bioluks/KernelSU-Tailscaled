@@ -1,5 +1,7 @@
-v2.3.0 (bioluks fork)
+v3.0.0 (bioluks)
 
+- Establish the independently maintained project with the Android companion as
+  the 3.0 release. Preserve upstream attribution and existing installation paths.
 - Add an optional native Android companion: share files to eligible Taildrop
   devices, select files within the app, and control the existing module.
 - Reuse the module login, effective engine and socket; no Android VPN slot,
@@ -8,7 +10,7 @@ v2.3.0 (bioluks fork)
   completed-receive notifications. Automatic delivery works without the APK.
 - Keep English as the default with a remembered Chinese language switch.
 - Publish a separately installable, release-signed APK alongside the three
-  verified module ZIPs. VersionCode 20000026 upgrades earlier private candidates.
+  verified module ZIPs. VersionCode 30000000 upgrades earlier combined builds.
 
 v2.2.0 (bioluks fork)
 

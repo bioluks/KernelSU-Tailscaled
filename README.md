@@ -10,18 +10,20 @@ Run the official Tailscale daemon on rooted Android without occupying Android's
 VPN slot. KernelSU-first module with a local WebUI, serialized lifecycle control,
 diagnostic health checks, explicit legacy migration, and verified runtime updates.
 
-This is **bioluks's fork**, maintained on **all-features-merged**. Version **2.3.0**
-adds an optional native Android companion for sharing files to Taildrop devices,
-simple module controls, and received-file notifications. The English-default
-WebUI, Chinese language switch, Headscale sign-in and automatic receiving remain.
+**Independently maintained by bioluks**, with **all-features-merged** as the default
+development branch. Version **3.0.0** brings together the module and optional native
+Android companion: share files to Taildrop devices, control the module, and receive
+completed-file notifications. English is the default; Simplified Chinese,
+Headscale sign-in and automatic Taildrop receiving remain supported.
 
 Download the [latest published stable release](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
 The legacy Magisk-Tailscaled v1 release and update channel are retired. Only the
 `kernelsu-tailscaled` module line is maintained. Official store review is separate.
-This fork continues [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled),
-based on `ryukora/Magisk-Tailscaled`; it is not an official Tailscale or KernelSU
-product. The daemon remains the official Tailscale 1.104.2 binary; this project
-maintains the Android module integration. No device-specific kernel is included.
+The project continues [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled),
+based on `ryukora/Magisk-Tailscaled`, and is maintained independently of upstream.
+It is not an official Tailscale or KernelSU product. The daemon remains the
+official Tailscale 1.104.2 binary; this project maintains the Android module and
+companion integration. No device-specific kernel is included.
 
 ## Identity And Compatibility
 
@@ -47,7 +49,7 @@ for actual results and remaining limits.
    The universal ZIP includes both architectures; an ARM64-only ZIP is also built.
 2. Install the ZIP through KernelSU Manager, or `ksud module install ZIP`.
    The installer verifies the complete bundle, switches the owned runtime, and
-   publishes the KernelSU WebUI and Action entrypoints. Existing v2 login and
+   publishes the KernelSU WebUI and Action entrypoints. Existing module login and
    configuration are preserved. No post-install patch script is needed.
 3. Installation starts the new runtime immediately unless an old login still
    requires explicit migration. No script requests or performs an Android reboot.
@@ -61,12 +63,14 @@ to load its new assets. Normal KernelSU module promotion remains compatible with
 the selected runtime. **Apply staged runtime** is also available for a staged
 candidate; routine ZIP installation does not need that extra step.
 
-Existing `kernelsu-tailscaled` users can install this fork's ZIP over their current
-module. The ID and persistent data directory are unchanged; do not uninstall or
-delete state first. The fork ZIP switches subsequent module update checks to
-this repository. Upstream installations do not automatically discover this fork;
-the first switch is a manual ZIP install. This includes the private `2.1.1-dev.1`
-combined build (`versionCode=20000019`); release 2.3.0 advances to 20000026.
+Existing `kernelsu-tailscaled` users can install this project's ZIP over their
+current module. The ID and persistent data directory are unchanged; do not
+uninstall or delete state first. Installing this ZIP switches subsequent module
+update checks to this repository. Upstream installations do not automatically
+discover this project's releases; the first switch is a manual ZIP install.
+Version **3.0.0** uses `versionCode=30000000`, advancing earlier published and
+private combined builds. The major version marks independent maintenance and the
+Android companion, not a login migration or incompatible data-format change.
 
 ## WebUI Language And Headscale
 
@@ -151,8 +155,8 @@ the [official documentation](https://tailscale.com/docs/features/taildrop).
 
 ## Optional Android Companion
 
-Install `KernelSU-Tailscaled-companion-v2.3.0.apk` from the same GitHub release
-as the module. Requires Android 8.0 or newer and module **2.3.0 or newer**.
+Install `KernelSU-Tailscaled-companion-v3.0.0.apk` and the matching module from
+the same GitHub release. The companion requires Android 8.0 or newer.
 Open **Tailscaled Companion** and grant it root access in KernelSU. The companion
 uses the module's effective Tailscale engine, socket and existing login; it does
 not create a VPN, second daemon or separate account connection.
@@ -282,9 +286,10 @@ The WebUI invokes only a fixed command allowlist; `login-server` additionally
 accepts one validated HTTP/HTTPS base URL on stdin. The full official panel binds
 to IPv4 loopback. Log output is size-bounded and redacts keys, login URLs and proxy
 credentials. Treat any diagnostics as potentially containing device/network names.
-Uninstall stops owned processes but preserves v2 data. To intentionally discard a
-login, stop/uninstall the module first, then manually remove its isolated data
-directory. Legacy data is a separate ownership domain and is never purged by v2.
+Uninstall stops owned processes but preserves module data. To intentionally
+discard a login, stop/uninstall the module first, then manually remove its
+isolated data directory. Legacy data is a separate ownership domain and is never
+purged by this module.
 
 ## Development And Distribution
 
@@ -305,7 +310,7 @@ Binary payload manifests and architecture-specific installed-bundle manifests ar
 verified independently. CI rebuilds all ZIPs twice and compares their bytes.
 
 The default `all-features-merged` branch, `main` and feature branches build
-artifacts without publishing. `v2.*-*` tags publish as prereleases; stable tags
+artifacts without publishing. `v3.*-*` tags publish as prereleases; stable tags
 additionally require `STABLE_RELEASE_APPROVED=true` and
 the `source-release` environment. Enable repository release immutability before
 tag publication, then set `SOURCE_IMMUTABILITY_CONFIRMED=true` after checking the
@@ -320,9 +325,10 @@ using the original tag and build run ID without rebuilding packages or moving
 the tag. It verifies the successful build's commit and all existing draft assets
 before publishing; already published immutable assets are verified, not replaced.
 
-Fork releases are distributed on this repository's GitHub Releases page. The
-upstream store submission is historical and does not approve this fork; store
-publication remains disabled unless separately reviewed and authorized.
+Project releases are distributed on this repository's GitHub Releases page. The
+upstream store submission is historical and does not approve this independently
+maintained project; store publication remains disabled unless separately reviewed
+and authorized.
 
 Official store requirements are documented in
 [the research record](docs/research/2026-09-07-kernelsu-store-requirements.md).
