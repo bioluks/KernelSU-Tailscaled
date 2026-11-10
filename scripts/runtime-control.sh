@@ -18,6 +18,8 @@ kst_private_root || exit 1
 . "$BUNDLE_DIR/scripts/migrate-legacy.sh"
 . "$BUNDLE_DIR/tailscale/scripts/engine-update.sh"
 
+# Invoked indirectly by with_control_lock, not a dead function.
+# shellcheck disable=SC2329
 kst_dispatch() {
   if [ "$1" != boot ]; then
     locked_current=$(kst_current) || return 1
@@ -78,6 +80,19 @@ kst_dispatch() {
 }
 
 [ "$#" -eq 1 ] || { kst_error one-command-required; exit 2; }
+# Companion reads and transfers never mutate runtime selection. Resolve the
+# current immutable generation, then replace this shell so cancellation reaches
+# the official transfer process and no controller lock spans a network send.
+case "$1" in
+  taildrop-targets|taildrop-send)
+    selected=$(kst_current) || exit 1
+    [ -n "$selected" ] || selected=$BUNDLE_DIR
+    BUNDLE_DIR=$selected
+    export BUNDLE_DIR
+    unset KST_LOCK_HELD
+    exec sh "$selected/tailscale/scripts/tailscale-service" "$1" 9>&- 8>&-
+    ;;
+esac
 with_control_lock kst_dispatch "$1"
 result=$?
 sh "$BUNDLE_DIR/scripts/status-summary.sh" >/dev/null 2>&1 || true

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tailscaled 助手</string>
+    <string name="status">模块状态</string><string name="refresh">刷新</string>
+    <string name="enable">启用</string><string name="disable">禁用</string>
+    <string name="restart">重启</string><string name="logs">日志</string>
+    <string name="panel">打开完整面板</string><string name="send_files">选择要发送的文件</string>
+    <string name="choose_device">发送到设备</string><string name="send">发送</string><string name="cancel">取消</string>
+    <string name="working">处理中…</string>
+    <string name="idle_note">使用已安装的 KernelSU 模块，需要 Root 权限。不占用 VPN，无需第二个 Tailscale 连接。空闲时应用不运行。</string>
+    <string name="notifications">允许接收通知</string>
+    <string name="notification_off">通知已关闭。文件仍会保存到模块选定的文件夹。</string>
+    <string name="no_targets">没有支持 Taildrop 的设备。请连接模块并在控制服务器上启用文件共享。</string>
+    <string name="confirm_send">将 %1$d 个文件发送到 %2$s？</string>
+    <string name="sending">正在发送到 %1$s</string><string name="sent">文件已发送到 %1$s</string>
+    <string name="failed">传输失败</string><string name="cancelled">传输已取消</string>
+    <string name="received">收到 Taildrop 文件</string><string name="received_note">已保存到模块选定的文件夹。</string>
+    <string name="send_channel">正在传输文件</string><string name="receive_channel">已接收文件</string>
+    <string name="result_channel">传输结果</string><string name="transfer_busy">已有传输正在运行，请等待或从通知中取消。</string>
+    <string name="share_files_only">请选择文件或照片，而不是纯文本或链接。</string>
+    <string name="disable_warning">禁用模块？这将断开 Tailscale 并暂停自动接收文件。</string>
+    <string name="restart_warning">重启模块？这将暂时断开 Tailscale。</string>
+    <string name="error">操作无法完成</string><string name="language">English</string>
+</resources>

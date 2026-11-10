@@ -156,3 +156,86 @@ taildrop_health() {
   # breaks this identity check; full storage validation belongs to startup.
   [ "/proc/$pid/cwd" -ef "$TAILDROP_DIR" ] && [ -w "$TAILDROP_DIR" ]
 }
+
+# Read exactly the two LF-terminated headers without buffering any file bytes.
+# The NUL delimiter makes a NUL byte visible as an empty one-byte read rather
+# than silently dropping it. Android mksh and BusyBox ash support this mode.
+taildrop_read_header() {
+  local limit="$1" byte newline='
+'
+  TAILDROP_HEADER=
+  while [ "${#TAILDROP_HEADER}" -le "$limit" ]; do
+    if [ "$NUL_READ" = 1 ]; then
+      # Both supported Android shells provide byte-bounded read -n and -d.
+      # shellcheck disable=SC3045
+      IFS= read -r -n 1 -d '' byte || return 1
+    else
+      # POSIX-shell fallback: one byte only, with a sentinel to retain LF.
+      byte=$(dd bs=1 count=1 2>/dev/null; printf '.')
+      byte=${byte%.}
+    fi
+    [ -n "$byte" ] || return 1
+    if [ "$byte" = "$newline" ]; then [ -n "$TAILDROP_HEADER" ]; return $?; fi
+    [ "${#TAILDROP_HEADER}" -lt "$limit" ] || return 1
+    TAILDROP_HEADER=$TAILDROP_HEADER$byte
+  done
+  return 1
+}
+
+taildrop_valid_ipv4() {
+  local rest="$1" part count=0
+  case "$rest" in '' | *[!0-9.]*) return 1 ;; esac
+  while :; do
+    part=${rest%%.*}
+    valid_number "$part" 0 255 || return 1
+    count=$((count + 1))
+    case "$rest" in *.*) rest=${rest#*.} ;; *) break ;; esac
+  done
+  [ "$count" -eq 4 ]
+}
+
+taildrop_sender_ready() {
+  if module_disabled || migration_required || [ -f "$TS_DIR/migration-awaiting-enable" ]; then
+    echo 'Enable the module and complete identity migration before sending files' >&2
+    return 1
+  fi
+  daemon_running || { echo 'The owned Tailscale daemon must be running' >&2; return 1; }
+}
+
+taildrop_targets() {
+  taildrop_sender_ready || return 1
+  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp --targets
+}
+
+taildrop_send() {
+  local target filename targets
+  LC_ALL=C
+  export LC_ALL
+  taildrop_sender_ready || return 1
+  if ! taildrop_read_header 15 || ! taildrop_valid_ipv4 "$TAILDROP_HEADER"; then
+    echo 'A canonical eligible peer IPv4 line is required' >&2
+    return 2
+  fi
+  target=$TAILDROP_HEADER
+  taildrop_read_header 255 || { echo 'A safe filename line of at most 255 bytes is required' >&2; return 2; }
+  filename=$TAILDROP_HEADER
+  printf '%s\n' "$filename" | awk_command -v action=validate-filename -f "$SCRIPT_DIR/taildrop-filter.awk" || {
+    echo 'Filename must be a UTF-8 basename without path separators or control characters' >&2; return 2;
+  }
+  # FileTargets is the official eligibility list, including offline peers. The
+  # CLI checks eligibility again at transfer time and reports any later change.
+  targets=$(bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp --targets </dev/null) || return $?
+  # awk owns $1. The requested IP has already been restricted to digits/dots.
+  # shellcheck disable=SC2016
+  printf '%s\n' "$targets" | awk_command -v target="$target" '
+    $1 == target { found=1 }
+    END { exit !found }
+  ' || { echo 'Peer is not currently an eligible Taildrop target' >&2; return 2; }
+  taildrop_sender_ready || return 1
+  # Replace every controller shell so the caller owns and can terminate the
+  # transfer PID directly. No lock, spool file, logger or background job lives
+  # for the duration of the network transfer; the CLI exit status is unchanged.
+  exec 9>&- 8>&-
+  unset KST_LOCK_HELD
+  exec "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp "--name=$filename" - "$target:"
+}

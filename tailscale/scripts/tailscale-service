@@ -250,5 +250,7 @@ case "$1" in
   web-restart) with_control_lock web_restart ;;
   login-server) with_control_lock login_server ;;
   taildrop-save-dir) with_control_lock taildrop_save_directory ;;
-  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|taildrop-save-dir}' >&2; exit 2 ;;
+  taildrop-targets) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_targets ;;
+  taildrop-send) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_send ;;
+  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
 esac

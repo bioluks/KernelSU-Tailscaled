@@ -60,7 +60,11 @@ jobs:
           assert run['head_sha'] == subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
           assert run['repository']['full_name'] == os.environ['GITHUB_REPOSITORY']
           assert run['path'] == '.github/workflows/release.yml'
-          assert any(job['name'] == 'build' and job['conclusion'] == 'success' for job in jobs)
+          build = next(job for job in jobs if job['name'] == 'build' and job['conclusion'] == 'success')
+          assert any(step['name'] == 'Build signed release companion' and step['conclusion'] == 'success'
+                     for step in build['steps'])
+          assert not any(step['name'] == 'Build debug companion' and step['conclusion'] == 'success'
+                         for step in build['steps'])
           PY
 
       - name: Download verified packages
@@ -70,6 +74,21 @@ jobs:
           path: dist
           run-id: ${{ inputs.build_run_id }}
           github-token: ${{ github.token }}
+
+      - name: Require exact release asset set
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          version = next(line.split('=', 1)[1] for line in Path('module.prop').read_text().splitlines()
+                         if line.startswith('version='))
+          expected = {f'KernelSU-Tailscaled-v{version}.zip',
+                      f'KernelSU-Tailscaled-arm-v{version}.zip',
+                      f'KernelSU-Tailscaled-arm64-v{version}.zip',
+                      f'KernelSU-Tailscaled-companion-v{version}.apk'}
+          files = list(Path('dist').iterdir())
+          assert {path.name for path in files} == expected
+          assert all(path.is_file() and path.stat().st_size > 0 for path in files)
+          PY
 
       - name: Require immutable-release configuration
         env:
@@ -98,17 +117,28 @@ jobs:
           fi
           case "$release_id" in ''|*[!0-9]*) exit 1 ;; esac
           endpoint="repos/$GITHUB_REPOSITORY/releases/$release_id"
+          apk="dist/KernelSU-Tailscaled-companion-${RELEASE_TAG}.apk"
+          apk_count=$(gh api "$endpoint" --jq '[.assets[].name | select(endswith(".apk"))] | length')
+          if [ "$apk_count" = 0 ] && [ "$(gh api "$endpoint" --jq .draft)" = true ]; then
+            upload_url=$(gh api "$endpoint" --jq .upload_url)
+            upload_url=${upload_url%%\{*}
+            gh api --method POST "$upload_url?name=${apk##*/}" \
+              --header 'Content-Type: application/vnd.android.package-archive' \
+              --input "$apk" > /dev/null
+          fi
           gh api "$endpoint" > release.json
           python - <<'PY'
           import hashlib, json, os
           from pathlib import Path
           release = json.loads(Path('release.json').read_text())
-          files = {p.name: p for p in Path('dist').glob('*.zip')}
+          files = {p.name: p for p in Path('dist').iterdir()}
           assert release['tag_name'] == os.environ['RELEASE_TAG']
-          assert files and {a['name'] for a in release['assets']} == files.keys()
+          assert len(files) == 4 and {a['name'] for a in release['assets']} == files.keys()
           assert len(release['assets']) == len(files)
           for asset in release['assets']:
-              assert asset['content_type'] in ('application/zip', 'application/x-zip-compressed')
+              expected_mime = (('application/vnd.android.package-archive',) if asset['name'].endswith('.apk')
+                               else ('application/zip', 'application/x-zip-compressed'))
+              assert asset['content_type'] in expected_mime
               assert asset['digest'] == 'sha256:' + hashlib.sha256(files[asset['name']].read_bytes()).hexdigest()
           PY
           if [ "$(gh api "$endpoint" --jq .draft)" = true ]; then
@@ -120,7 +150,7 @@ jobs:
             gh release edit "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --draft=false "${flags[@]}"
           fi
           test "$(gh api "$endpoint" --jq .immutable)" = true
-          for archive in dist/*.zip; do
+          for archive in dist/*.zip dist/*.apk; do
             attempt=0
             until gh release verify-asset "$RELEASE_TAG" "$archive" -R "$GITHUB_REPOSITORY"; do
               attempt=$((attempt + 1))
