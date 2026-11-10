@@ -30,3 +30,13 @@ This supersedes the earlier requirement to wait for a separate manual acceptance
 message for this release only. The test passed with identity/config preservation
 and connectivity verified. Final ZIP checks and device installation remain part
 of the release gate. No additional reboot or store synchronization is implied.
+
+## v3.1.0 authorization (2026-11-10)
+
+The maintainer explicitly requested separate-branch development, ADB verification,
+merging into `all-features-merged`, and an appropriately versioned new release for
+the companion share-sheet, Settings and transfer-notification improvements.
+This authorizes publication after those checks; no additional manual-acceptance
+message, Android reboot or store synchronization was requested. ARM64 hot-upgrade
+verification preserved the node identity, IPs and exact Tailscale preferences.
+Boot activation was not re-tested for this companion-focused release.

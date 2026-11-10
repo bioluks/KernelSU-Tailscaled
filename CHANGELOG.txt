@@ -1,3 +1,14 @@
+v3.1.0 (bioluks)
+
+- Show Android shares in a rounded bottom sheet over the dimmed source app,
+  with a scrollable device list and immediate sending on device selection.
+- Add Settings with an explicit English/Simplified Chinese selector, receive
+  notification controls and optional confirmation before sending (off by default).
+- Show current KB/s or MB/s, sent bytes and known total size in send notifications.
+  Sample independently during blocked writes; distinguish finalizing from success.
+- Keep the existing module login, engine, network preferences and Taildrop folder.
+  VersionCode 30010000 upgrades earlier published and private combined builds.
+
 v3.0.0 (bioluks)
 
 - Add an optional native Android companion: share files to eligible Taildrop

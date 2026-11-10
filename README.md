@@ -10,10 +10,10 @@ Run the official Tailscale daemon on rooted Android without occupying Android's
 VPN slot. KernelSU-first module with a local WebUI, serialized lifecycle control,
 diagnostic health checks, explicit legacy migration, and verified runtime updates.
 
-Version **3.0.0** adds an optional native Android companion: share files to
-Taildrop devices, control the module, and receive completed-file notifications.
-English is the default; Simplified Chinese, Headscale sign-in and automatic
-Taildrop receiving remain supported.
+Version **3.1.0** refines Android sharing with a floating device sheet, live
+transfer details, and a dedicated Settings page. The optional companion shares
+Taildrop files, controls the module, and reports completed receives. English
+is the default; Simplified Chinese, Headscale and automatic receiving remain supported.
 
 Download the [latest published stable release](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
 The legacy Magisk-Tailscaled v1 release and update channel are retired. Only the
@@ -67,7 +67,7 @@ current module. The ID and persistent data directory are unchanged; do not
 uninstall or delete state first. Installing this ZIP switches subsequent module
 update checks to this repository. Upstream installations do not automatically
 discover this project's releases; the first switch is a manual ZIP install.
-Version **3.0.0** uses `versionCode=30000000`, advancing earlier published and
+Version **3.1.0** uses `versionCode=30010000`, advancing earlier published and
 private combined builds. Existing login state and data formats are unchanged.
 
 ## WebUI Language And Headscale
@@ -153,21 +153,26 @@ the [official documentation](https://tailscale.com/docs/features/taildrop).
 
 ## Optional Android Companion
 
-Install `KernelSU-Tailscaled-companion-v3.0.0.apk` and the matching module from
+Install `KernelSU-Tailscaled-companion-v3.1.0.apk` and the matching module from
 the same GitHub release. The companion requires Android 8.0 or newer.
 Open **Tailscaled Companion** and grant it root access in KernelSU. The companion
 uses the module's effective Tailscale engine, socket and existing login; it does
 not create a VPN, second daemon or separate account connection.
 
 - In Files, Photos or another app, select one or more files and choose
-  **Share → Tailscaled Companion → device → Send**. Alternatively use
-  **Choose files to send** in the companion. Plain text and URL shares are not
-  converted into files. The picker lists the official Taildrop-eligible peers,
-  including offline annotations; your server must advertise file sharing.
+  **Share → Tailscaled Companion → device**. A rounded bottom sheet keeps the
+  source application visible behind a dimmed overlay. Tapping a device sends
+  immediately by default; enable **Settings → Confirm before sending** for a
+  separate review step. Alternatively use **Choose files to send** in the app.
+  Plain text and URL shares are not converted into files. The picker lists the
+  official Taildrop-eligible peers, including offline annotations; your server
+  must advertise file sharing.
 - Transfers stream directly from Android's granted content URI through the
   existing CLI, without copying a complete file to an app cache. The foreground
   notification is present only during an active send and offers **Cancel**.
-  Progress measures bytes supplied to the CLI; final success waits for its exit.
+  It shows per-file sent bytes, total size when known, and current KB/s or MB/s.
+  Progress measures bytes supplied to the CLI, not remote acknowledgements;
+  **Finalizing** waits for CLI completion before reporting success.
   Transfers continue when you leave the activity. Android 15+ limits background
   data-sync foreground services to six hours; a timeout cancels the send.
 - Eligible devices are also published as Android 10+ sharing shortcuts when the
@@ -175,12 +180,14 @@ not create a VPN, second daemon or separate account connection.
   suggestions appear; the in-app picker always remains available.
 - Native controls provide status, enable/disable, restart, logs and an external
   browser link to the full loopback panel. Advanced settings stay in the WebUI.
-  The companion defaults to English; **简体中文 / English** remembers its language.
-- Choose **Allow receive notifications** to permit optional completed-file
-  notifications. Receiving and folder selection remain module-owned. Closing,
-  force-stopping, denying notifications or uninstalling the companion does not
-  stop automatic delivery. No app polling, boot service or second receiver runs.
-  Notifications describe successful saves, not incoming-transfer progress.
+  The companion defaults to English; **Settings → Language** remembers an
+  explicit English or Simplified Chinese selection.
+- **Settings → Receive notifications** opens Android's notification settings
+  for optional completed-file notifications. Receiving and folder selection
+  remain module-owned. Closing, force-stopping, denying notifications or
+  uninstalling the companion does not stop automatic delivery. No app polling,
+  boot service or second receiver runs. Notifications describe successful saves,
+  not incoming-transfer progress.
 
 The APK is optional, separately installed, and never silently installed by the
 module. It has no analytics, cloud service, auto-updater or broad storage access.
