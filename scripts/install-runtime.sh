@@ -27,7 +27,7 @@ kst_install_complete() (
   fi
   prepared=$(mktemp -d "$MODDIR/.install.XXXXXX") || exit 1
   # Invoked indirectly by the exit and signal traps.
-  # shellcheck disable=SC2317
+  # shellcheck disable=SC2317,SC2329
   cleanup_install() {
     if [ -d "$prepared/previous-webroot" ] && [ ! -e "$MODDIR/webroot" ]; then
       mv "$prepared/previous-webroot" "$MODDIR/webroot" || return 1
