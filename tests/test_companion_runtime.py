@@ -119,6 +119,7 @@ sys.exit(int(os.environ.get('SEND_EXIT', '0')))
         self.assertFalse((self.root / 'send.json').exists())
 
     def test_send_uses_effective_engine(self):
+        (self.bundle / 'tailscale/config/engine-compat').unlink(missing_ok=True)
         engine = self.state / 'engines/1.104.3'
         (engine / 'bin').mkdir(parents=True)
         shutil.copyfile(self.bin / 'tailscale', engine / 'bin/tailscale')
@@ -135,6 +136,20 @@ sys.exit(int(os.environ.get('SEND_EXIT', '0')))
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(str(engine / 'bin/tailscale'), json.loads((self.root / 'send.json').read_text())['cli'])
 
+    def test_send_with_compat_marker_rejects_newer_external_engine(self):
+        (self.bundle / 'tailscale/config/engine-compat').write_text('android-compat-1\n')
+        engine = self.state / 'engines/1.104.3'
+        (engine / 'bin').mkdir(parents=True)
+        shutil.copyfile(self.bin / 'tailscale', engine / 'bin/tailscale')
+        shutil.copyfile(self.bin / 'tailscaled', engine / 'bin/tailscaled')
+        (engine / 'engine-version').write_text('1.104.3\n')
+        (self.state / 'engine-current').symlink_to(engine)
+        record = self.common('write_pid "$DAEMON_PID" "$1" "$TAILSCALED_BIN" "--socket=$SOCKET_FILE"', str(self.daemon.pid))
+        self.assertNotEqual(0, record.returncode)
+        self.assertIn('downgrade rejected', record.stderr)
+        result = self.command('taildrop-send', b'100.100.1.3\nfile.txt\ncontents')
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(b'downgrade rejected', result.stderr)
     def test_send_exec_preserves_pid_and_does_not_hold_controller_lock(self):
         send = subprocess.Popen(['/bin/sh', str(self.bundle / 'control.sh'), 'taildrop-send'],
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

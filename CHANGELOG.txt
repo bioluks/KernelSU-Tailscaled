@@ -1,8 +1,9 @@
-v3.2.0 (bioluks) — Native Android compatibility
+v3.2.0 (bioluks) — Native Android compatibility & Built from Source
 
-- Build the engine from pinned Tailscale 1.104.2 source with reproducible Android
-  compatibility patches. Retry unsupported optional strict-netlink setup on old
-  kernels without changing normal modern-kernel behavior or masking real errors.
+- Build Tailscale binaries completely from scratch from pinned upstream v1.104.2 source;
+  no opaque pre-compiled blobs are used. Engine builds are 100% deterministic and reproducible.
+- Retry unsupported optional strict-netlink setup on older Android kernels (such as 4.9)
+  without changing normal modern-kernel behavior or masking real errors.
 - Route cached control-plane DNS and standalone CLI lookups through Android's
   existing system resolver rather than assuming /etc/resolv.conf exists.
 - Preserve fresh hostname and conservative DNS/route defaults across restarts
