@@ -2,8 +2,9 @@
 
 The optional Android companion requires Android 8.0+, KernelSU root approval, and
 an independently installed compatible KernelSU-Tailscaled module. These channels
-update **only the APK**, never the module ZIP. For the current companion, install
-module **v3.1.0 or newer**. The module remains usable without the companion.
+update **only the APK**, never the module ZIP. For this release, use the matching
+module **v3.2.0** to obtain the native Android compatibility fixes. The module
+remains usable without the companion.
 
 ## F-Droid-compatible repositories
 

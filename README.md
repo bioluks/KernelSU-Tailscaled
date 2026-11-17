@@ -115,8 +115,8 @@ current module. The ID and persistent data directory are unchanged; do not
 uninstall or delete state first. Installing this ZIP switches subsequent module
 update checks to this repository. Upstream installations do not automatically
 discover this project's releases; the first switch is a manual ZIP install.
-Version **3.1.0** uses `versionCode=30010000`, advancing earlier published and
-private combined builds. Existing login state and data formats are unchanged.
+Version **3.2.0** uses `versionCode=30020000`, advancing v3.1.0 and the local
+compatibility candidates. Existing login state and data formats are unchanged.
 
 ## WebUI Language And Headscale
 
@@ -201,7 +201,7 @@ the [official documentation](https://tailscale.com/docs/features/taildrop).
 
 ## Optional Android Companion
 
-Install `KernelSU-Tailscaled-companion-v3.1.0.apk` and the matching module from
+Install `KernelSU-Tailscaled-companion-v3.2.0.apk` and the matching module from
 the same GitHub release. The companion requires Android 8.0 or newer.
 Open **Tailscaled Companion** and grant it root access in KernelSU. The companion
 uses the module's effective Tailscale engine, socket and existing login; it does

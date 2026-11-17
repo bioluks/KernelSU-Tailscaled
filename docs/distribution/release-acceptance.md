@@ -40,3 +40,18 @@ This authorizes publication after those checks; no additional manual-acceptance
 message, Android reboot or store synchronization was requested. ARM64 hot-upgrade
 verification preserved the node identity, IPs and exact Tailscale preferences.
 Boot activation was not re-tested for this companion-focused release.
+
+## v3.2.0 authorization (2026-11-17)
+
+After reviewing the compatibility implementation and F1 results, the maintainer
+explicitly requested publishing the separate compatibility branch, merging its
+fixes into `all-features-merged`, and generating a new appropriately versioned
+release. This authorizes GitHub publication after CI and exact stable artifact
+verification; no additional acceptance prompt is required. Google Play and
+KernelSU store publication are not authorized by this request.
+
+The v3.1.1-dev.3 ARM64 candidate passed native LAN Headscale registration, direct
+UDP, hash-matched transfers, preference/identity continuity and an explicitly
+authorized boot test. v3.2.0 promotes the same engine/runtime/app source with
+release metadata and documentation changes. The candidate evidence and remaining
+limits are in `docs/verification/2026-11-17-f1-native-compatibility.md`.
