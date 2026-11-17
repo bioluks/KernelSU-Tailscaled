@@ -93,13 +93,13 @@ describe("dashboard actions", () => {
 
   it('checks and prepares engines through fixed actions without applying automatically', async () => {
     await boot();
-    vi.mocked(exec).mockResolvedValueOnce(result('{"current":"1.104.2","latest":"","staged":""}'));
+    vi.mocked(exec).mockResolvedValueOnce(result('{"current":"1.104.2","latest":"","staged":"","updatePolicy":"engine"}'));
     button('engine-page').click();
     await settled();
-    vi.mocked(exec).mockResolvedValueOnce(result('{"current":"1.104.2","latest":"1.106.0","staged":""}'));
+    vi.mocked(exec).mockResolvedValueOnce(result('{"current":"1.104.2","latest":"1.106.0","staged":"","updatePolicy":"engine"}'));
     button('engine-check').click();
     await settled();
-    vi.mocked(exec).mockResolvedValueOnce(result('{"current":"1.104.2","latest":"1.106.0","staged":"1.106.0"}'));
+    vi.mocked(exec).mockResolvedValueOnce(result('{"current":"1.104.2","latest":"1.106.0","staged":"1.106.0","updatePolicy":"engine"}'));
     button('engine-prepare').click();
     await settled();
     expect(button('engine-apply')).not.toBeNull();

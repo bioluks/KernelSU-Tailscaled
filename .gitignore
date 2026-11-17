@@ -1,6 +1,7 @@
 .superpowers/
 .device-tests/
 .tailscale-downloads/
+/.local/
 dist/
 __pycache__/
 *.py[cod]

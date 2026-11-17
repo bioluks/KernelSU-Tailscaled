@@ -228,6 +228,21 @@ def verify(archive_path: Path, arch: str) -> None:
         validate_architecture(names, arch)
         validate_manifest(archive, names)
         validate_bundles(archive, names, arch)
+        if "tailscale/config/engine-compat" in names:
+            try:
+                provenance = json.loads(archive.read("engine-build.json"))
+                compatibility = archive.read("tailscale/config/engine-compat").decode().strip()
+                if provenance["compatibility"] != compatibility:
+                    fail("engine compatibility provenance mismatch")
+                if "v" + provenance["upstreamVersion"] != archive.read("files/VERSION.txt").decode().strip():
+                    fail("engine upstream version provenance mismatch")
+                for selected in (("arm", "arm64") if arch == "all" else (arch,)):
+                    for binary in ("tailscale", "tailscaled"):
+                        name = f"{binary}-{selected}"
+                        if provenance["binaries"][name] != hashlib.sha256(archive.read(f"files/{name}")).hexdigest():
+                            fail(f"engine provenance hash mismatch: {name}")
+            except (KeyError, ValueError, TypeError, UnicodeDecodeError) as error:
+                fail(f"invalid engine provenance: {error}")
         try:
             meta = json.loads(archive.read('module.json'))
             if not isinstance(meta, dict) or meta.get('metamodule') is not False:

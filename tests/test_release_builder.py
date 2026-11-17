@@ -1,4 +1,5 @@
 import hashlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,16 @@ class ReleaseBuilderTests(unittest.TestCase):
             path = root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
+        self.write_engine_provenance(root)
+
+    @staticmethod
+    def write_engine_provenance(root: Path) -> None:
+        (root / "files/engine-build.json").write_text(json.dumps({
+            "compatibility": "android-compat-1",
+            "upstreamVersion": (root / "files/VERSION.txt").read_text().strip().removeprefix("v"),
+            "binaries": {f"{program}-{arch}": hashlib.sha256((root / f"files/{program}-{arch}").read_bytes()).hexdigest()
+                         for arch in ("arm", "arm64") for program in ("tailscale", "tailscaled")},
+        }))
 
     def build(self, source: Path, output: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(

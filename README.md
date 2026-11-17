@@ -6,7 +6,7 @@
 
 # KernelSU-Tailscaled
 
-Run the official Tailscale daemon on rooted Android without occupying Android's
+Run a Tailscale-derived daemon on rooted Android without occupying Android's
 VPN slot. This fork extends the upstream KernelSU module with a native Android
 companion, system-share integration, automatic Taildrop delivery, English/Chinese
 interfaces, integrated Headscale sign-in, and lower-overhead supervision.
@@ -33,7 +33,7 @@ base, the changes extend everyday use, not just installation or bug fixes:
 | **Transfer feedback** | Cancellable background sends with per-file sent/total bytes, current KB/s or MB/s, and a separate finalizing state. Files stream from granted content URIs without whole-file cache copies. Optional receive notifications report completed saves. |
 | **Automatic Taildrop receiving** | Native-mode receiving into Downloads or a WebUI-selected shared-storage folder. One event-driven, supervised receiver; no periodic inbox scan. Duplicate names are preserved, failed saves remain queued, and folder changes restart only the receiver. Delivery works without the companion installed or running. |
 | **English and Chinese interfaces** | English by default in both the WebUI and companion, with remembered Simplified Chinese selection. The WebUI has a language selector; the app has a dedicated Settings page, including send-confirmation and receive-notification controls. |
-| **Integrated Headscale sign-in** | A custom control-server URL and explicit registration flow in the WebUI, with confirmation before switching servers. Uses the official engine's existing Headscale support and retains other network preferences; no manual login command is needed for this flow. |
+| **Integrated Headscale sign-in** | A custom control-server URL and explicit registration flow in the WebUI, with confirmation before switching servers. Uses upstream's existing Headscale support and retains other network preferences; no manual login command is needed for this flow. |
 | **Lower idle supervisor overhead** | Fewer external process/property lookups, time-bounded status probes, less frequent Manager metadata work and no unchanged-description rewrites. Process recovery remains active even before login. The measured reduction is in supervisor CPU, not a claimed battery-life improvement. |
 | **Companion release integration** | A separately installable, release-signed APK alongside universal, ARM64 and ARM module ZIPs. Release gates check APK signing, reproducible unsigned APK bytes and the exact four-asset release set. |
 
@@ -56,9 +56,9 @@ line, this also means native TUN networking and integrated management rather
 than its documented userspace/proxy-based, terminal-led setup.
 
 Based on those projects, with upstream credits and licensing retained. Maintained
-here by bioluks; not an official Tailscale or KernelSU product. The daemon remains
-the official Tailscale 1.104.2 binary; the additions are in the Android module and
-companion integration, not a custom Tailscale engine or device-specific kernel.
+here by bioluks; not an official Tailscale or KernelSU product. The bundled
+engine is built from Tailscale 1.104.2 with small, reproducible Android
+compatibility patches; it is not an unmodified official release binary.
 The legacy Magisk-Tailscaled v1 update channel is retired; only the
 `kernelsu-tailscaled` module line is maintained here. Official store review is
 separate.
@@ -80,6 +80,15 @@ Earlier upstream testing also targeted OnePlus PKX110 and Xiaomi nezha. Host
 tests and package validation do not establish broad Android, Magisk, APatch,
 or userspace-tunnel compatibility. See the release notes and `docs/verification`
 for actual results and remaining limits.
+
+The compatibility engine handles kernels that reject optional strict-netlink
+socket options by retrying only that read-only route connection without the
+unsupported options. It also uses Android's system DNS resolver for control
+connections and standalone CLI lookups. This is capability-based, not a kernel
+version or device-name allowlist. No AFWall rules, copied main-table defaults,
+fixed Wi-Fi interface names, SELinux disabling or `VpnService` are required.
+Root/TUN permissions, supported ARM/ARM64 hardware and functioning Android
+networking remain prerequisites; arbitrary kernels/ROMs are not guaranteed.
 
 ## Install And Activate
 
@@ -146,16 +155,16 @@ in the WebUI. See [Headscale client registration](https://headscale.net/stable/u
 
 ## Update The Tailscale Engine
 
-Open **Tailscale engine update** in Details. Check for an official stable
-version, download and verify it, then apply when ready. Downloading does not
-interrupt the service; applying briefly restarts it while retaining your login
-and settings. No Android reboot is requested.
+The compatibility engine is delivered with the full module so standalone
+official engine updates cannot silently remove required Android fixes.
+**Tailscale engine update** in Details shows the bundled and upstream versions,
+but download/apply controls are unavailable for compatibility builds. Install a
+newer full module to update its engine; no Android reboot is normally required.
 
-Downloads use the official HTTPS server and its SHA-256 checksum. Failed
-activation restores the previous engine and saved identity. Pending recovery
-respects a later stop/disable. Updated engines persist across module installs
-and boot; a newer bundled engine takes precedence. See the
-[v2.0.5 release notes](docs/releases/v2.0.5.md) for validation and limits.
+Previously downloaded engines are preserved on disk. A newer selected engine
+causes installation of an older compatibility engine to be rejected before the
+current runtime is stopped. Do not downgrade an engine against newer state.
+See [engine provenance and reproducible builds](engine/README.md).
 
 ## Taildrop On Android
 
@@ -290,8 +299,10 @@ No script edits another module's firewall, proxy, DNS, or ZeroTier configuration
 
 Fresh identities initialize a hostname from the Android device name, falling
 back to product/model, and begin with DNS/subnet acceptance and exit routing off.
-Existing identities retain their preferences. The dashboard prefers the
-control-plane DNS name so admin-console renaming appears correctly.
+Before first authentication these upstream preferences are memory-only; the
+module reapplies defaults once per daemon generation until a profile persists.
+Persisted, logged-out and migrated identities retain their preferences. The
+dashboard prefers the control-plane DNS name so admin-console renaming appears.
 
 The status contract reports lifecycle, owned processes, real native interface
 and applicable routes, upstream health warnings, preferences, and active/staged
@@ -345,6 +356,7 @@ npm run typecheck
 npm test
 npm run build
 cd ..
+python3 scripts/build_engine.py  # Python 3.12+ and Go; toolchain/source pinned
 sh scripts/build-release.sh --use-existing-binaries --output dist
 ```
 
@@ -352,6 +364,9 @@ Run process/lifecycle behavior tests on Linux or WSL; Windows-only unit tests sk
 those tests. Packages normalize LF, ordering, timestamps and executable modes.
 Binary payload manifests and architecture-specific installed-bundle manifests are
 verified independently. CI rebuilds all ZIPs twice and compares their bytes.
+The engine recipe verifies upstream source and patches and records output
+provenance. CI runs Linux engine regressions and compares all four rebuilt
+engines with committed payloads. See [the engine build contract](engine/README.md).
 
 The default `all-features-merged` branch, `main` and feature branches build
 artifacts without publishing. `v3.*-*` tags publish as prereleases; stable tags

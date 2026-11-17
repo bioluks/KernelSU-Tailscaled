@@ -57,6 +57,7 @@ class CompleteInstallTests(unittest.TestCase):
         for arch in ("arm", "arm64"):
             for name in ("tailscale", "tailscaled", "hev-socks5-tunnel-linux"):
                 (self.source / f"files/{name}-{arch}").write_text("#!/bin/sh\nprintf '1.102.3\\n'\n")
+        self.builder.write_engine_provenance(self.source)
         self.archive = self.build("first")
 
     def build(self, name):

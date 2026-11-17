@@ -193,16 +193,19 @@ export function renderEngineUpdate(root: HTMLElement, status: EngineStatus): voi
   appendLanguageSelector(header);
   root.append(header);
   const section = document.createElement('section');
+  const standaloneUpdates = status.updatePolicy === 'engine';
   const facts = document.createElement('dl');
   addFact(facts, t("Current engine", "当前引擎"), status.current || t("Unknown", "未知"));
   addFact(facts, t("Official stable release", "官方稳定版"), status.latest || t("Not checked", "尚未检查"));
-  addFact(facts, t("Verified and ready to install", "已校验待安装"), status.staged || t("None", "无"));
+  if (standaloneUpdates) addFact(facts, t("Verified and ready to install", "已校验待安装"), status.staged || t("None", "无"));
   section.append(facts);
-  appendText(section, 'p', t("Downloaded from Tailscale and verified. Applying briefly restarts the service, retaining your login and settings. No device reboot needed.", "从 Tailscale 官方下载并校验。应用更新会短暂重启服务，保留登录和配置；设备无需重启。"));
+  appendText(section, 'p', standaloneUpdates
+    ? t("Downloaded from Tailscale and verified. Applying briefly restarts the service, retaining your login and settings. No device reboot needed.", "从 Tailscale 官方下载并校验。应用更新会短暂重启服务，保留登录和配置；设备无需重启。")
+    : t("This bundled engine includes required Android compatibility patches. To keep those patches, update the full module. Official releases are shown for reference only; standalone engine downloads and installation are disabled.", "内置引擎包含必需的 Android 兼容性补丁。为保留这些补丁，请更新整个模块。官方版本信息仅供参考；已禁用独立引擎的下载与安装。"));
   addButton(section, 'engine-check', t("Check for updates", "检查更新"), t("Check the official stable release", "检查官方稳定版"));
-  if (status.latest) addButton(section, 'engine-prepare',
+  if (standaloneUpdates && status.latest) addButton(section, 'engine-prepare',
     status.latest === status.current ? t("Download and verify again", "重新下载并校验") : t("Download and verify", "下载并校验"), t("Download and verify the official engine", "下载并校验官方引擎"));
-  if (status.staged) addButton(section, 'engine-apply', t("Apply engine update", "应用引擎更新"), t("Apply verified engine", "应用已校验引擎"));
+  if (standaloneUpdates && status.staged) addButton(section, 'engine-apply', t("Apply engine update", "应用引擎更新"), t("Apply verified engine", "应用已校验引擎"));
   addButton(section, 'back', t("Back", "返回"), t("Back to status", "返回状态页"));
   root.append(section);
 }

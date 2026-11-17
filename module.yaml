@@ -2,7 +2,7 @@
 schemaVersion: 1
 id: kernelsu-tailscaled
 name: KernelSU-Tailscaled
-summary: Official Tailscale daemon integration for rooted Android with KernelSU WebUI, service health monitoring, and verified in-module engine updates.
+summary: Tailscale-derived native daemon for rooted Android with reproducible compatibility patches, KernelSU WebUI, and service supervision.
 description: README.md
 license: BSD-3-Clause
 homepage: https://github.com/bioluks/KernelSU-Tailscaled

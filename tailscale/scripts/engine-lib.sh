@@ -1,6 +1,10 @@
 #!/system/bin/sh
 # shellcheck disable=SC3043
 
+engine_requires_bundle() {
+  [ -s "$BUNDLE_DIR/tailscale/config/engine-compat" ]
+}
+
 engine_valid_version() {
   printf '%s\n' "$1" | grep -Eq '^[0-9]{1,5}\.[0-9]{1,5}\.[0-9]{1,5}$'
 }
@@ -26,6 +30,14 @@ engine_select() {
   version=$(cat "$selected/engine-version") || return 1
   base=$(cat "$BUNDLE_DIR/engine-version") || return 1
   engine_valid_version "${version#v}" || return 1
+  if engine_requires_bundle; then
+    # Reject downgrades without running an engine that lacks compatibility patches.
+    if ! engine_at_least "$base" "$version"; then
+      echo 'newer engine requires newer compatibility module; downgrade rejected' >&2
+      return 1
+    fi
+    return 0
+  fi
   if engine_at_least "$version" "$base"; then ENGINE_DIR=$selected; fi
 }
 

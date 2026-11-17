@@ -88,6 +88,11 @@ def common_entries(source: Path) -> dict[str, bytes]:
             if path.is_file():
                 name = path.relative_to(source).as_posix()
                 entries[name] = normalized_bytes(path, name)
+    if (source / "tailscale/config/engine-compat").is_file():
+        provenance = source / "files/engine-build.json"
+        if provenance.is_symlink() or not provenance.is_file():
+            raise ValueError("Compatibility engine build provenance is required")
+        entries["engine-build.json"] = provenance.read_bytes()
     return entries
 
 

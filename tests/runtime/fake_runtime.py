@@ -14,6 +14,21 @@ args = sys.argv[1:]
 def option(prefix):
     return next(item.split('=', 1)[1] for item in args if item.startswith(prefix + '='))
 
+def default_preferences():
+    return {'Hostname': '', 'CorpDNS': True, 'RouteAll': False, 'ExitNodeIP': '',
+            'ExitNodeID': '', 'AdvertiseRoutes': [], 'LoggedOut': True,
+            'WantRunning': False, 'Persist': {'PrivateNodeKey': 'PRIVATE_SENTINEL'}}
+
+def write_preferences(prefs):
+    (root / 'prefs.json').write_text(json.dumps(prefs))
+    profile = json.loads((root / 'profile.json').read_text())
+    # Upstream keeps preferences only in memory until the profile has an ID/Key.
+    if profile.get('ID') and profile.get('Key'):
+        state = Path(os.environ['TS_DIR']) / 'tailscaled.state'
+        state.write_text(json.dumps({'machine': 'PRIVATE_SENTINEL',
+                                     '_profiles': 'eyJmaXh0dXJlIjp7fX0=',
+                                     'profile': profile, 'prefs': prefs}))
+
 def serve(sock):
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     while True:
@@ -27,10 +42,24 @@ if name == 'tailscaled':
         stream.write(str(time.monotonic()) + '\n')
     if (root / 'daemon-fail').exists():
         sys.exit(1)
+    state = Path(option('--state'))
+    if state.exists():
+        try:
+            saved = json.loads(state.read_text())
+        except json.JSONDecodeError:
+            # Tests that seed IMPORTED represent a pre-existing persisted identity.
+            saved = {'profile': {'ID': 'imported', 'Key': 'profile-imported'},
+                     'prefs': json.loads((root / 'prefs.json').read_text())}
+    else:
+        saved = {}
+    profile = saved.get('profile', {'ID': '', 'Key': ''})
+    (root / 'profile.json').write_text(json.dumps(profile))
+    (root / 'prefs.json').write_text(json.dumps(saved.get('prefs', default_preferences())))
+    if not state.exists():
+        state.write_text(json.dumps({'machine': 'PRIVATE_SENTINEL'}))
     sock = socket.socket(socket.AF_UNIX)
     sock.bind(option('--socket'))
     sock.listen()
-    Path(option('--state')).touch()
     serve(sock)
 elif name == 'tailscale':
     if not any(command in args for command in ('web', 'version')):
@@ -61,11 +90,13 @@ elif name == 'tailscale':
         method, endpoint, *body = args[args.index('localapi') + 1:]
         if (root / 'localapi-fail').exists():
             sys.exit(1)
-        if method == 'PATCH' and endpoint == '/localapi/v0/prefs':
+        if method == 'GET' and endpoint == '/localapi/v0/profiles/current':
+            print((root / 'profile.json').read_text())
+        elif method == 'PATCH' and endpoint == '/localapi/v0/prefs':
             patch = json.loads(body[0])
             prefs = json.loads((root / 'prefs.json').read_text())
             prefs.update({key: value for key, value in patch.items() if not key.endswith('Set')})
-            (root / 'prefs.json').write_text(json.dumps(prefs))
+            write_preferences(prefs)
             print(json.dumps(prefs))
         elif method == 'POST' and endpoint == '/localapi/v0/login-interactive':
             status = json.loads((root / 'status.json').read_text())
@@ -77,6 +108,40 @@ elif name == 'tailscale':
     elif 'set' in args:
         with (root / 'sets').open('a') as stream:
             stream.write(json.dumps(args) + '\n')
+        prefs = json.loads((root / 'prefs.json').read_text())
+        for argument in args[args.index('set') + 1:]:
+            flag, value = argument.split('=', 1)
+            if flag == '--hostname':
+                prefs['Hostname'] = value
+            elif flag == '--accept-dns':
+                prefs['CorpDNS'] = value == 'true'
+            elif flag == '--accept-routes':
+                prefs['RouteAll'] = value == 'true'
+            elif flag == '--exit-node':
+                prefs.update(ExitNodeIP=value, ExitNodeID='')
+            elif flag == '--advertise-routes':
+                prefs['AdvertiseRoutes'] = value.split(',') if value else []
+            else:
+                sys.exit(2)
+        write_preferences(prefs)
+    elif 'up' in args:
+        prefs = json.loads((root / 'prefs.json').read_text())
+        prefs.update(LoggedOut=False, WantRunning=True)
+        prefs['Persist'].update(NodeID='fixture-node',
+                                UserProfile={'LoginName': 'fixture@example.com'})
+        (root / 'profile.json').write_text(json.dumps({'ID': 'fixture', 'Key': 'profile-fixture'}))
+        write_preferences(prefs)
+        status = json.loads((root / 'status.json').read_text())
+        status.update(BackendState='Running', TailscaleIPs=['100.100.1.1'])
+        (root / 'status.json').write_text(json.dumps(status))
+    elif 'logout' in args:
+        (root / 'profile.json').write_text(json.dumps({'ID': '', 'Key': ''}))
+        write_preferences(default_preferences())
+        (Path(os.environ['TS_DIR']) / 'tailscaled.state').write_text(
+            json.dumps({'machine': 'PRIVATE_SENTINEL', '_profiles': 'e30='}))
+        status = json.loads((root / 'status.json').read_text())
+        status.update(BackendState='NeedsLogin', TailscaleIPs=[])
+        (root / 'status.json').write_text(json.dumps(status))
     else:
         sys.exit(2)
 elif name == 'ip':

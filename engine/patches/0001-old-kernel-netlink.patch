@@ -1,0 +1,240 @@
+--- a/net/netmon/interfaces_linux.go
++++ b/net/netmon/interfaces_linux.go
+@@ -152,13 +152,39 @@
+ 	return defaultRouteFromNetlink()
+ }
+ 
+-func defaultRouteFromNetlink() (d DefaultRouteDetails, err error) {
+-	c, err := rtnetlink.Dial(&netlink.Config{Strict: true})
++type routeNetlinkConn interface {
++	ListRoutes() ([]rtnetlink.RouteMessage, error)
++	Close() error
++}
++
++type routeNetlinkClient struct {
++	*rtnetlink.Conn
++}
++
++func (c routeNetlinkClient) ListRoutes() ([]rtnetlink.RouteMessage, error) {
++	return c.Route.List()
++}
++
++func defaultRouteFromNetlink() (DefaultRouteDetails, error) {
++	return defaultRouteFromNetlinkWith(func(config *netlink.Config) (routeNetlinkConn, error) {
++		c, err := rtnetlink.Dial(config)
++		return routeNetlinkClient{c}, err
++	}, net.InterfaceByIndex)
++}
++
++func defaultRouteFromNetlinkWith(dial func(*netlink.Config) (routeNetlinkConn, error), interfaceByIndex func(int) (*net.Interface, error)) (d DefaultRouteDetails, err error) {
++	c, err := dial(&netlink.Config{Strict: true})
++	if errors.Is(err, unix.ENOPROTOOPT) {
++		// Older kernels lack the optional NETLINK_EXT_ACK or
++		// NETLINK_GET_STRICT_CHK socket options enabled by Strict.
++		// rtnetlink closes the failed connection; retry without those options.
++		c, err = dial(&netlink.Config{})
++	}
+ 	if err != nil {
+ 		return d, fmt.Errorf("defaultRouteFromNetlink: Dial: %w", err)
+ 	}
+ 	defer c.Close()
+-	rms, err := c.Route.List()
++	rms, err := c.ListRoutes()
+ 	if err != nil {
+ 		return d, fmt.Errorf("defaultRouteFromNetlink: List: %w", err)
+ 	}
+@@ -181,7 +207,7 @@
+ 		if idx == 0 {
+ 			continue
+ 		}
+-		if iface, err := net.InterfaceByIndex(idx); err == nil {
++		if iface, err := interfaceByIndex(idx); err == nil {
+ 			d.InterfaceName = iface.Name
+ 			d.InterfaceIndex = idx
+ 			return d, nil
+--- a/net/netmon/interfaces_linux_test.go
++++ b/net/netmon/interfaces_linux_test.go
+@@ -7,10 +7,16 @@
+ 	"errors"
+ 	"fmt"
+ 	"io/fs"
++	"net"
+ 	"os"
+ 	"path/filepath"
++	"slices"
++	"strings"
+ 	"testing"
+ 
++	"github.com/jsimonetti/rtnetlink"
++	"github.com/mdlayher/netlink"
++	"golang.org/x/sys/unix"
+ 	"tailscale.com/tstest"
+ )
+ 
+@@ -114,3 +120,166 @@
+ 	}
+ 	t.Logf("Got: %+v", d)
+ }
++
++func TestDefaultRouteFromNetlinkRoutes(t *testing.T) {
++	for _, tt := range []struct {
++		name         string
++		strictErr    error
++		wantAttempts []bool
++	}{
++		{"strict", nil, []bool{true}},
++		{"unsupported-option", unix.ENOPROTOOPT, []bool{true, false}},
++		{"wrapped-unsupported-option", fmt.Errorf("netlink dial: %w", os.NewSyscallError("setsockopt", unix.ENOPROTOOPT)), []bool{true, false}},
++	} {
++		t.Run(tt.name, func(t *testing.T) {
++			c := &testRouteNetlinkConn{routes: []rtnetlink.RouteMessage{
++				{Attributes: rtnetlink.RouteAttributes{OutIface: 1}},
++				{DstLength: 24, Attributes: rtnetlink.RouteAttributes{Dst: net.ParseIP("192.0.2.0"), Gateway: net.ParseIP("192.0.2.1"), OutIface: 2}},
++				{Attributes: rtnetlink.RouteAttributes{Gateway: net.ParseIP("192.0.2.1")}},
++				{Attributes: rtnetlink.RouteAttributes{Gateway: net.ParseIP("192.0.2.1"), OutIface: 3}},
++				{Family: unix.AF_INET, Table: 100, Type: unix.RTN_UNICAST, Attributes: rtnetlink.RouteAttributes{Gateway: net.ParseIP("192.0.2.1"), OutIface: 7}},
++				{Family: unix.AF_INET6, Type: unix.RTN_UNICAST, Attributes: rtnetlink.RouteAttributes{Gateway: net.ParseIP("fe80::1"), OutIface: 8}},
++			}}
++			var attempts []bool
++			dial := func(config *netlink.Config) (routeNetlinkConn, error) {
++				strict := config != nil && config.Strict
++				attempts = append(attempts, strict)
++				if strict && tt.strictErr != nil {
++					return nil, tt.strictErr
++				}
++				return c, nil
++			}
++			interfaceByIndex := func(idx int) (*net.Interface, error) {
++				switch idx {
++				case 1, 2:
++					return &net.Interface{Index: idx, Name: "not-default"}, nil
++				case 7:
++					return &net.Interface{Index: idx, Name: "uplink0"}, nil
++				case 8:
++					return &net.Interface{Index: idx, Name: "uplink6"}, nil
++				default:
++					return nil, errors.New("interface no longer exists")
++				}
++			}
++			got, err := defaultRouteFromNetlinkWith(dial, interfaceByIndex)
++			if err != nil {
++				t.Fatal(err)
++			}
++			want := DefaultRouteDetails{InterfaceName: "uplink0", InterfaceIndex: 7}
++			if got != want {
++				t.Errorf("default route = %+v, want %+v", got, want)
++			}
++			if !slices.Equal(attempts, tt.wantAttempts) {
++				t.Errorf("dial Strict options = %v, want %v", attempts, tt.wantAttempts)
++			}
++			if !c.closed {
++				t.Error("route connection was not closed")
++			}
++		})
++	}
++}
++
++func TestDefaultRouteFromNetlinkErrors(t *testing.T) {
++	textErr := errors.New("setsockopt: protocol not available")
++	for _, tt := range []struct {
++		name         string
++		strictErr    error
++		fallbackErr  error
++		listErr      error
++		wantErr      error
++		wantContext  string
++		wantAttempts []bool
++	}{
++		{name: "strict-permission", strictErr: fmt.Errorf("dial: %w", unix.EPERM), wantErr: unix.EPERM, wantContext: "Dial", wantAttempts: []bool{true}},
++		{name: "strict-access-denied", strictErr: unix.EACCES, wantErr: unix.EACCES, wantContext: "Dial", wantAttempts: []bool{true}},
++		{name: "strict-not-supported", strictErr: unix.EOPNOTSUPP, wantErr: unix.EOPNOTSUPP, wantContext: "Dial", wantAttempts: []bool{true}},
++		{name: "strict-invalid", strictErr: unix.EINVAL, wantErr: unix.EINVAL, wantContext: "Dial", wantAttempts: []bool{true}},
++		{name: "strict-error-text", strictErr: textErr, wantErr: textErr, wantContext: "Dial", wantAttempts: []bool{true}},
++		{name: "fallback-permission", strictErr: unix.ENOPROTOOPT, fallbackErr: fmt.Errorf("dial: %w", unix.EPERM), wantErr: unix.EPERM, wantContext: "Dial", wantAttempts: []bool{true, false}},
++		{name: "fallback-unsupported-option", strictErr: unix.ENOPROTOOPT, fallbackErr: unix.ENOPROTOOPT, wantErr: unix.ENOPROTOOPT, wantContext: "Dial", wantAttempts: []bool{true, false}},
++		{name: "strict-list-permission", listErr: fmt.Errorf("route dump: %w", unix.EPERM), wantErr: unix.EPERM, wantContext: "List", wantAttempts: []bool{true}},
++		{name: "strict-list-unsupported-option", listErr: unix.ENOPROTOOPT, wantErr: unix.ENOPROTOOPT, wantContext: "List", wantAttempts: []bool{true}},
++		{name: "fallback-list-permission", strictErr: unix.ENOPROTOOPT, listErr: fmt.Errorf("route dump: %w", unix.EPERM), wantErr: unix.EPERM, wantContext: "List", wantAttempts: []bool{true, false}},
++		{name: "fallback-list-io", strictErr: unix.ENOPROTOOPT, listErr: unix.EIO, wantErr: unix.EIO, wantContext: "List", wantAttempts: []bool{true, false}},
++	} {
++		t.Run(tt.name, func(t *testing.T) {
++			c := &testRouteNetlinkConn{
++				routes:  []rtnetlink.RouteMessage{{Attributes: rtnetlink.RouteAttributes{Gateway: net.ParseIP("192.0.2.1"), OutIface: 7}}},
++				listErr: tt.listErr,
++			}
++			var attempts []bool
++			dial := func(config *netlink.Config) (routeNetlinkConn, error) {
++				strict := config != nil && config.Strict
++				attempts = append(attempts, strict)
++				if strict && tt.strictErr != nil {
++					return nil, tt.strictErr
++				}
++				if !strict && tt.fallbackErr != nil {
++					return nil, tt.fallbackErr
++				}
++				return c, nil
++			}
++			got, err := defaultRouteFromNetlinkWith(dial, func(idx int) (*net.Interface, error) {
++				return &net.Interface{Index: idx, Name: "uplink0"}, nil
++			})
++			if !errors.Is(err, tt.wantErr) {
++				t.Fatalf("error = %v, want %v", err, tt.wantErr)
++			}
++			if !strings.HasPrefix(err.Error(), "defaultRouteFromNetlink: "+tt.wantContext+": ") {
++				t.Errorf("error = %v, want %s context", err, tt.wantContext)
++			}
++			if got != (DefaultRouteDetails{}) {
++				t.Errorf("default route on error = %+v, want zero value", got)
++			}
++			if !slices.Equal(attempts, tt.wantAttempts) {
++				t.Errorf("dial Strict options = %v, want %v", attempts, tt.wantAttempts)
++			}
++			if wantClosed := tt.wantContext == "List"; c.closed != wantClosed {
++				t.Errorf("connection closed = %v, want %v", c.closed, wantClosed)
++			}
++		})
++	}
++}
++
++func TestDefaultRouteFromNetlinkNoDefaultRoute(t *testing.T) {
++	for _, strictErr := range []error{nil, unix.ENOPROTOOPT} {
++		t.Run(fmt.Sprint(strictErr), func(t *testing.T) {
++			c := &testRouteNetlinkConn{routes: []rtnetlink.RouteMessage{
++				{Attributes: rtnetlink.RouteAttributes{OutIface: 7}},
++				{DstLength: 24, Attributes: rtnetlink.RouteAttributes{Dst: net.ParseIP("192.0.2.0"), Gateway: net.ParseIP("192.0.2.1"), OutIface: 7}},
++			}}
++			got, err := defaultRouteFromNetlinkWith(func(config *netlink.Config) (routeNetlinkConn, error) {
++				if config != nil && config.Strict && strictErr != nil {
++					return nil, strictErr
++				}
++				return c, nil
++			}, func(idx int) (*net.Interface, error) {
++				return &net.Interface{Index: idx, Name: "not-default"}, nil
++			})
++			if !errors.Is(err, errNoDefaultRoute) {
++				t.Fatalf("error = %v, want %v", err, errNoDefaultRoute)
++			}
++			if got != (DefaultRouteDetails{}) {
++				t.Errorf("default route = %+v, want zero value", got)
++			}
++			if !c.closed {
++				t.Error("route connection was not closed")
++			}
++		})
++	}
++}
++
++type testRouteNetlinkConn struct {
++	routes  []rtnetlink.RouteMessage
++	listErr error
++	closed  bool
++}
++
++func (c *testRouteNetlinkConn) ListRoutes() ([]rtnetlink.RouteMessage, error) {
++	return c.routes, c.listErr
++}
++
++func (c *testRouteNetlinkConn) Close() error {
++	c.closed = true
++	return nil
++}

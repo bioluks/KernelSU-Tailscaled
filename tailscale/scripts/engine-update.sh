@@ -9,14 +9,21 @@ engine_fetch() {
     "https://pkgs.tailscale.com/stable/$1" --output "$2"
 }
 
+engine_require_standalone_updates() {
+  engine_requires_bundle || return 0
+  echo 'This engine requires bundled Android compatibility patches; update the full module instead of downloading or applying a standalone engine.' >&2
+  return 1
+}
+
 engine_status() {
-  local current latest staged
+  local current latest staged policy=engine
   engine_select || return 1
   current=$(cat "$ENGINE_DIR/engine-version" 2>/dev/null); current=${current#v}
   latest=$(cat "$TS_DIR/engine-offer" 2>/dev/null)
   staged=$(cat "$TS_DIR/engine-ready/engine-version" 2>/dev/null)
-  printf '{"current":"%s","latest":"%s","staged":"%s"}\n' \
-    "$(json_escape "$current")" "$(json_escape "$latest")" "$(json_escape "$staged")"
+  if engine_requires_bundle; then policy=module; fi
+  printf '{"current":"%s","latest":"%s","staged":"%s","updatePolicy":"%s"}\n' \
+    "$(json_escape "$current")" "$(json_escape "$latest")" "$(json_escape "$staged")" "$policy"
 }
 
 engine_check() (
@@ -33,6 +40,7 @@ engine_check() (
 
 engine_prepare() (
   local version arch work archive expected actual member listing binary reported target
+  engine_require_standalone_updates || exit 1
   version=$(cat "$TS_DIR/engine-offer") || exit 1
   engine_valid_version "$version" || exit 1
   case "$(uname -m)" in aarch64|arm64) arch=arm64 ;; armv7*|armv8l|arm) arch=arm ;; *) echo 'Unsupported engine architecture' >&2; exit 1 ;; esac
@@ -109,6 +117,7 @@ engine_recover() {
 
 engine_apply() (
   local target root version old wanted=0 backend journal="$TS_DIR/engine-transaction" before
+  engine_require_standalone_updates || exit 1
   engine_recover || exit 1
   [ -L "$TS_DIR/engine-ready" ] && [ ! -L "$TS_DIR/engines" ] || exit 1
   target=$(readlink -f "$TS_DIR/engine-ready") || exit 1

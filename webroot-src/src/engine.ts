@@ -1,6 +1,6 @@
 import { t } from "./i18n";
 
-export interface EngineStatus { current: string; latest: string; staged: string }
+export interface EngineStatus { current: string; latest: string; staged: string; updatePolicy: 'engine' | 'module' }
 
 export function parseEngineStatus(text: string): EngineStatus {
   const data: unknown = JSON.parse(text);
@@ -10,6 +10,9 @@ export function parseEngineStatus(text: string): EngineStatus {
     if (typeof result[key] !== 'string' || !/^(?:\d{1,5}\.\d{1,5}\.\d{1,5})?$/.test(result[key])) {
       throw new Error(t("Invalid engine version", "引擎版本格式错误"));
     }
+  }
+  if (result.updatePolicy !== 'engine' && result.updatePolicy !== 'module') {
+    throw new Error(t("Invalid engine update policy", "引擎更新策略格式错误"));
   }
   return result as unknown as EngineStatus;
 }

@@ -1,5 +1,6 @@
 import os
 import hashlib
+import json
 import io
 import tarfile
 import shutil
@@ -32,6 +33,20 @@ class EngineUpdateTests(unittest.TestCase):
         return subprocess.run(['sh', '-c', f'. "{library}"; ' + code],
                               env=self.env, text=True, capture_output=True)
 
+    def set_compatibility_marker(self, content='android-compat-1\n'):
+        marker = self.bundle / 'tailscale/config/engine-compat'
+        marker.parent.mkdir(parents=True)
+        marker.write_text(content)
+
+    def snapshot_state(self):
+        return {
+            str(path.relative_to(self.state)): (
+                ('link', os.readlink(path)) if path.is_symlink() else
+                ('directory',) if path.is_dir() else ('file', path.read_bytes())
+            )
+            for path in self.state.rglob('*')
+        }
+
     def test_bundled_engine_is_default(self):
         result = self.run_shell('engine_select; printf "%s" "$ENGINE_DIR"')
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -48,6 +63,58 @@ class EngineUpdateTests(unittest.TestCase):
         (self.bundle / 'engine-version').write_text('1.108.0\n')
         self.assertEqual(self.run_shell('engine_select; printf "%s" "$ENGINE_DIR"').stdout,
                          str(self.bundle))
+
+    def test_compatibility_marker_uses_bundle_without_changing_older_saved_engine(self):
+        engine = self.prepare_transaction()
+        (self.state / 'engine-current').symlink_to(engine)
+        self.set_compatibility_marker()
+        before = self.snapshot_state()
+        for version in ('1.106.0', '1.108.0'):
+            with self.subTest(bundled_version=version):
+                (self.bundle / 'engine-version').write_text(version + '\n')
+                result = self.run_shell('engine_select && printf "%s" "$ENGINE_DIR"')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, str(self.bundle))
+                self.assertEqual(self.snapshot_state(), before)
+
+    def test_compatibility_marker_rejects_downgrade_from_newer_saved_engine(self):
+        engine = self.prepare_transaction()
+        (self.state / 'engine-current').symlink_to(engine)
+        self.set_compatibility_marker()
+        before = self.snapshot_state()
+        result = self.run_shell('engine_select && printf "%s" "$ENGINE_DIR"')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('newer engine requires newer compatibility module; downgrade rejected', result.stderr)
+        self.assertEqual(result.stdout, '')
+        self.assertEqual(self.snapshot_state(), before)
+
+    def test_empty_compatibility_marker_keeps_standalone_engine_selection(self):
+        engine = self.prepare_transaction()
+        (self.state / 'engine-current').symlink_to(engine)
+        self.set_compatibility_marker('')
+        result = self.run_shell('engine_select && printf "%s" "$ENGINE_DIR"')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, str(engine))
+
+    def test_compatibility_marker_rejects_invalid_saved_engine_pointer(self):
+        (self.state / 'engine-current').symlink_to(self.root / 'missing-engine')
+        self.set_compatibility_marker()
+        before = self.snapshot_state()
+        result = self.run_shell('engine_select && printf "%s" "$ENGINE_DIR"')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, '')
+        self.assertEqual(self.snapshot_state(), before)
+
+    def test_compatibility_marker_rejects_invalid_saved_engine_version(self):
+        engine = self.prepare_transaction()
+        (engine / 'engine-version').write_text('invalid\n')
+        (self.state / 'engine-current').symlink_to(engine)
+        self.set_compatibility_marker()
+        before = self.snapshot_state()
+        result = self.run_shell('engine_select && printf "%s" "$ENGINE_DIR"')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, '')
+        self.assertEqual(self.snapshot_state(), before)
 
     def test_external_engine_pointer_is_rejected(self):
         (self.state / 'engine-current').symlink_to(self.bundle)
@@ -97,6 +164,8 @@ class EngineUpdateTests(unittest.TestCase):
           cli_json() {{ printf 'NeedsLogin'; }}
           module_disabled() {{ return {0 if disabled else 1}; }}
           json_escape() {{ printf '%s' "$1"; }}
+          uname() {{ printf 'aarch64\\n'; }}
+          engine_fetch() {{ printf 'download\\n' >> "$TS_DIR/calls"; return 1; }}
           kst_pointer() {{ ln -s "$2" "$TS_DIR/.$1.new" && mv -Tf "$TS_DIR/.$1.new" "$TS_DIR/$1"; }}
           kst_runtime() {{
             printf '%s\\n' "$2" >> "$TS_DIR/calls"
@@ -109,6 +178,56 @@ class EngineUpdateTests(unittest.TestCase):
           }}
           {action}
         ''')
+
+    def test_module_policy_blocks_prepare_and_apply_before_any_mutation(self):
+        engine = self.prepare_transaction()
+        self.set_compatibility_marker()
+        (self.state / 'engine-current').symlink_to(engine)
+        (self.state / 'engine-offer').write_text('1.106.0\n')
+        journal = self.state / 'engine-transaction'
+        journal.mkdir()
+        (journal / 'previous').write_text('bundled\n')
+        (journal / 'wanted').write_text('1\n')
+        (journal / 'state-existed').touch()
+        (journal / 'snapshot-ready').touch()
+        (journal / 'tailscaled.state').write_text('saved identity')
+        before = self.snapshot_state()
+        for action in ('engine_prepare', 'engine_apply'):
+            with self.subTest(action=action):
+                result = self.transaction(action)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('update the full module', result.stderr)
+                self.assertEqual(self.snapshot_state(), before)
+
+    def test_module_policy_rejects_prepare_before_creating_an_engine_store(self):
+        self.set_compatibility_marker()
+        (self.state / 'engine-offer').write_text('1.106.0\n')
+        before = self.snapshot_state()
+        result = self.transaction('engine_prepare')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('update the full module', result.stderr)
+        self.assertEqual(self.snapshot_state(), before)
+
+    def test_module_policy_still_checks_official_stable_release(self):
+        self.set_compatibility_marker()
+        (self.state / 'run').mkdir()
+        update = ROOT / 'tailscale/scripts/engine-update.sh'
+        parser = ROOT / 'tailscale/scripts/json.awk'
+        result = self.run_shell(f'''
+          . "{update}"
+          RUN_DIR="$TS_DIR/run"
+          engine_fetch() {{ printf '%s' '{{"TarballsVersion":"1.106.0"}}' > "$2"; }}
+          json_read() {{ awk -v action="$1" -f "{parser}"; }}
+          json_escape() {{ printf '%s' "$1"; }}
+          engine_check
+        ''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {
+            'current': '1.104.2', 'latest': '1.106.0', 'staged': '',
+            'updatePolicy': 'module',
+        })
+        self.assertEqual((self.state / 'engine-offer').read_text(), '1.106.0\n')
+        self.assertFalse((self.state / 'engines').exists())
 
     def test_failed_activation_restores_identity_and_previous_selection(self):
         self.prepare_transaction()
@@ -232,6 +351,7 @@ shutil.copyfile(pathlib.Path(os.environ['ENGINE_DOWNLOAD_FIXTURE']) / source,
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.state / 'engine-ready/bin/tailscaled').exists())
         self.assertFalse((self.state / 'engine-current').exists())
+        self.assertEqual(json.loads(result.stdout)['updatePolicy'], 'engine')
 
     def test_corrupt_archive_never_becomes_staged_or_active(self):
         self.download_fixture(corrupt=True)

@@ -126,6 +126,15 @@ END {
         for(peer=first[peers];peer;peer=nextnode[peer]) ips(member(peer,"TailscaleIPs"))
     } else if(action=="hostname") {
         id=member(root,"Hostname"); if(type[id]=="string") print substr(value[id],2,length(value[id])-2)
+    } else if(action=="profile-persisted") {
+        id=member(root,"ID"); saved=member(root,"Key")
+        if(type[id]!="string" || type[saved]!="string") fail()
+        if((value[id]=="\"\"") != (value[saved]=="\"\"")) fail()
+        print (value[id]!="\"\"" ? "true" : "false")
+    } else if(action=="profile-history") {
+        id=member(root,"_profiles")
+        if(id && type[id]!="string") fail()
+        print (id && value[id]!="\"\"" ? "true" : "false")
     } else if(action=="warnings") {
         if(value[member(root,"CorpDNS")]=="true") print "dns"
         if(value[member(root,"RouteAll")]=="true") print "routes"

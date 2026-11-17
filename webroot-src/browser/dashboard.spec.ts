@@ -23,10 +23,10 @@ async function mockBridge(page: Page, status: unknown) {
         if (fixture.hanging.includes(action)) return;
         let output = "done";
         if (action === "status-json") output = JSON.stringify(fixture.status);
-        if (action === 'engine-status') output = '{"current":"1.104.2","latest":"","staged":""}';
-        if (action === 'engine-check') output = '{"current":"1.104.2","latest":"1.106.0","staged":""}';
-        if (action === 'engine-prepare') output = '{"current":"1.104.2","latest":"1.106.0","staged":"1.106.0"}';
-        if (action === 'engine-apply') output = '{"current":"1.106.0","latest":"1.106.0","staged":""}';
+        if (action === 'engine-status') output = '{"current":"1.104.2","latest":"","staged":"","updatePolicy":"engine"}';
+        if (action === 'engine-check') output = '{"current":"1.104.2","latest":"1.106.0","staged":"","updatePolicy":"engine"}';
+        if (action === 'engine-prepare') output = '{"current":"1.104.2","latest":"1.106.0","staged":"1.106.0","updatePolicy":"engine"}';
+        if (action === 'engine-apply') output = '{"current":"1.106.0","latest":"1.106.0","staged":"","updatePolicy":"engine"}';
         if (action === "logs") output = '<script>bad()</script>\nfixture log line';
         if (action === "diagnostics") output = `${JSON.stringify(fixture.status)}\nredacted log`;
         if (action === "migration-status") output = '{"state":"migration-required"}';

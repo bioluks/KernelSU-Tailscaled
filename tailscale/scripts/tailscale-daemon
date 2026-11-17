@@ -4,6 +4,7 @@ SCRIPT_DIR=${0%/*}
 . "$SCRIPT_DIR/common.sh"
 FRESH_MARKER="$TS_DIR/fresh-defaults.pending"
 HOSTNAME_MARKER="$TS_DIR/hostname.initialized"
+FRESH_APPLIED="$RUN_DIR/fresh-defaults.applied"
 
 hostname_slug() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/--*/-/g; s/^-//; s/-$//' | cut -c 1-63 | sed 's/-$//'
@@ -12,7 +13,21 @@ hostname_slug() {
 initialize_hostname() {
   [ -f "$TS_DIR/migration-origin" ] && return 0
   [ -f "$FRESH_MARKER" ] || return 0
-  local prefs current raw_name hostname
+  local persisted prefs current raw_name hostname
+  persisted=$(cli_json profile-persisted debug localapi GET /localapi/v0/profiles/current) || return 1
+  # Logout deletes the current profile, but its persisted profile index remains.
+  # That history also retires freshness if login/logout happened between starts.
+  if [ "$persisted" = false ] && [ -s "$STATE_FILE" ]; then
+    persisted=$(json_read profile-history < "$STATE_FILE") || return 1
+  fi
+  if [ "$persisted" = true ]; then
+    : > "$HOSTNAME_MARKER"
+    rm -f "$FRESH_MARKER" "$FRESH_APPLIED"
+    return 0
+  fi
+  # Fresh profile prefs are memory-only until authentication supplies a profile ID/Key.
+  # Apply once per owned daemon generation, not again after a user's explicit set.
+  cmp -s "$DAEMON_PID" "$FRESH_APPLIED" && return 0
   prefs=$(cli_json prefs debug prefs) || return 1
   current=$(printf '%s' "$prefs" | json_read hostname)
   raw_name="$DEVICE_HOSTNAME"
@@ -25,9 +40,8 @@ initialize_hostname() {
   case "$current" in '' | localhost) ;; *) hostname="$current" ;; esac
   if bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" set --hostname="$hostname" \
     --accept-dns=false --accept-routes=false --exit-node= --advertise-routes= >/dev/null 2>&1; then
-    : > "$HOSTNAME_MARKER"
-    rm -f "$FRESH_MARKER"
-    log INFO 'Initialized fresh hostname and conservative DNS/route preferences'
+    cp "$DAEMON_PID" "$FRESH_APPLIED" || return 1
+    log INFO 'Applied fresh hostname and conservative DNS/route preferences pending first profile persistence'
   else
     log ERROR 'Fresh preference initialization failed before interactive login'
     return 1
@@ -51,7 +65,7 @@ daemon_start() {
   [ -x "$TAILSCALED_BIN" ] && [ -x "$TAILSCALE_BIN" ] || return 1
   ensure_dirs || return 1
   [ -e "$STATE_FILE" ] || : > "$FRESH_MARKER"
-  rm -f "$SOCKET_FILE"
+  rm -f "$SOCKET_FILE" "$FRESH_APPLIED"
   local tun="$TUN_NAME" deadline
   [ "$MODE" = userspace ] && tun=userspace-networking
   if [ -n "$CONTROL_PROXY" ]; then

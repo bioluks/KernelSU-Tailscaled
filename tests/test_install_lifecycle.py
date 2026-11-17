@@ -88,6 +88,24 @@ class InstallLifecycleTests(unittest.TestCase):
         self.assertFalse(journal.exists())
         self.assertFalse((self.state / 'run/fake-running').exists())
 
+    def test_compatibility_upgrade_rejects_newer_saved_engine_before_stop(self):
+        self.run_control('boot')
+        active = self.active()
+        engine = self.state / 'engines/newer'
+        (engine / 'bin').mkdir(parents=True)
+        (engine / 'engine-version').write_text('1.106.0\n')
+        (self.state / 'engine-current').symlink_to(engine)
+        self.make_bundle(self.staged, 20000002, engine='1.104.2')
+        (self.staged / 'tailscale/config').mkdir(exist_ok=True)
+        (self.staged / 'tailscale/config/engine-compat').write_text('android-compat-1\n')
+        self.manifest(self.staged)
+        self.trace.write_text('')
+        result = self.run_control('apply-staged', ok=False)
+        self.assertIn('downgrade rejected', result.stderr)
+        self.assertEqual(active, self.active())
+        self.assertTrue((self.state / 'run/fake-running').exists())
+        self.assertEqual('', self.trace.read_text())
+
     def active(self):
         return (self.state / "current").resolve()
 
@@ -334,6 +352,7 @@ class InstallLifecycleTests(unittest.TestCase):
         for arch in ("arm", "arm64"):
             for name in ("tailscale", "tailscaled", "hev-socks5-tunnel-linux"):
                 (source / f"files/{name}-{arch}").write_text("#!/bin/sh\nexit 0\n")
+        builder.write_engine_provenance(source)
         result = builder.build(source, self.base / "packages")
         self.assertEqual(0, result.returncode, result.stderr)
         archive = next((self.base / "packages").glob("KernelSU-Tailscaled-v*.zip"))

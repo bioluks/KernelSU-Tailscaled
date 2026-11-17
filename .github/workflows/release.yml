@@ -34,6 +34,23 @@ jobs:
           cache: npm
           cache-dependency-path: webroot-src/package-lock.json
 
+      - name: Set up pinned engine Go toolchain
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.3"
+          cache: false
+
+      - name: Verify engine regression tests
+        run: python scripts/build_engine.py --test-only
+
+      - name: Verify reproducible compatibility engines
+        run: |
+          python scripts/build_engine.py --output "$RUNNER_TEMP/engine-rebuild"
+          for binary in tailscale-arm tailscaled-arm tailscale-arm64 tailscaled-arm64; do
+            cmp "files/$binary" "$RUNNER_TEMP/engine-rebuild/$binary"
+          done
+          cmp files/engine-build.json "$RUNNER_TEMP/engine-rebuild/engine-build.json"
+
       - name: Install frontend dependencies
         working-directory: webroot-src
         run: npm ci --ignore-scripts --no-audit --no-fund

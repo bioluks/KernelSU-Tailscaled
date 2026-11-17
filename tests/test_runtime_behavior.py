@@ -45,7 +45,7 @@ class RuntimeBehaviorTests(unittest.TestCase):
         self.config = (ROOT / 'tailscale/config/module.conf').read_text().replace('127.0.0.1:8088', f'127.0.0.1:{self.port}').replace('SUPERVISOR_INTERVAL=5', 'SUPERVISOR_INTERVAL=1').replace('RESTART_BACKOFF_MAX=60', 'RESTART_BACKOFF_MAX=4')
         self.set_config(self.config)
         self.write_status()
-        (self.root / 'prefs.json').write_text(json.dumps({'Hostname': '', 'CorpDNS': False, 'RouteAll': False, 'Persist': {'PrivateNodeKey': 'PRIVATE_SENTINEL'}}))
+        (self.root / 'prefs.json').write_text(json.dumps({'Hostname': '', 'CorpDNS': True, 'RouteAll': False, 'Persist': {'PrivateNodeKey': 'PRIVATE_SENTINEL'}}))
         (self.root / 'link').touch()
         (self.root / 'addresses').write_text('7: tailscale0 inet 100.100.1.1/32 scope global tailscale0\n')
         (self.root / 'routes').write_text('100.100.1.2 dev tailscale0 table 52 src 100.100.1.1\n')
@@ -83,6 +83,13 @@ class RuntimeBehaviorTests(unittest.TestCase):
     def start(self):
         result = self.run_command('start')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def cli(self, *args):
+        result = subprocess.run([str(self.bin / 'tailscale'),
+                                 '--socket=' + str(self.state / 'run/tailscaled.sock'), *args],
+                                env=self.env, capture_output=True, text=True, timeout=10)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        return result
 
     def common(self, body):
         return subprocess.run(['/bin/sh', '-c', '. "$BUNDLE_DIR/tailscale/scripts/common.sh"; ' + body], env=self.env, capture_output=True, text=True, timeout=10)
@@ -127,6 +134,8 @@ class RuntimeBehaviorTests(unittest.TestCase):
 
     def test_login_server_preserves_preferences_and_scopes_auth_url(self):
         self.start()
+        self.cli('set', '--hostname=chosen-name', '--accept-dns=true', '--accept-routes=true',
+                 '--exit-node=100.100.1.9', '--advertise-routes=192.0.2.0/24')
         before = json.loads((self.root / 'prefs.json').read_text())
         result = subprocess.run(['/bin/sh', str(self.service), 'login-server'],
                                 input='https://headscale.example.com:8443\n', env=self.env,
@@ -136,8 +145,10 @@ class RuntimeBehaviorTests(unittest.TestCase):
         self.assertEqual(response, {'controlURL': 'https://headscale.example.com:8443',
                                     'authURL': 'https://headscale.example.com:8443/register/TEST_LOGIN_SECRET'})
         prefs = json.loads((self.root / 'prefs.json').read_text())
-        for key, value in before.items():
-            self.assertEqual(prefs[key], value)
+        # Sign-in intentionally starts the control client and changes its server;
+        # every other preference, including explicit user choices, must survive.
+        expected = dict(before, ControlURL=response['controlURL'], WantRunning=True)
+        self.assertEqual(expected, prefs)
         status = self.status()
         self.assertEqual(status['prefs']['ControlURL'], response['controlURL'])
         self.assertNotIn('TEST_LOGIN_SECRET', json.dumps(status))
@@ -535,16 +546,113 @@ class RuntimeBehaviorTests(unittest.TestCase):
         (self.root / 'status.json').write_text('{"BackendState":"Running",broken}')
         self.assertIsNone(self.status()['tailscale'])
 
-    def test_fresh_defaults_before_login_and_imported_prefs_untouched(self):
-        self.write_status(backend='NeedsLogin', peers=False)
+    def test_fresh_defaults_survive_prelogin_restart_until_profile_is_persisted(self):
+        self.write_status(backend='NeedsLogin', peers=False, TailscaleIPs=[])
         self.start()
-        sets = (self.root / 'sets').read_text()
-        for argument in ['--accept-dns=false', '--accept-routes=false', '--exit-node=', '--advertise-routes=', '--hostname=fixture-phone']:
-            self.assertIn(argument, sets)
-        self.run_command('stop')
-        (self.root / 'sets').unlink()
+        expected = {'Hostname': 'fixture-phone', 'CorpDNS': False, 'RouteAll': False,
+                    'ExitNodeIP': '', 'ExitNodeID': '', 'AdvertiseRoutes': []}
+        for key, value in expected.items():
+            self.assertEqual(value, json.loads((self.root / 'prefs.json').read_text())[key])
+        self.assertTrue((self.state / 'tailscaled.state').exists())
+        self.assertNotIn('prefs', json.loads((self.state / 'tailscaled.state').read_text()))
+        self.assertTrue((self.state / 'fresh-defaults.pending').exists())
+        self.assertFalse((self.state / 'hostname.initialized').exists())
+        first_sets = (self.root / 'sets').read_text()
+        self.start()
+        self.assertEqual(first_sets, (self.root / 'sets').read_text())
+
+        self.assertEqual(0, self.run_command('restart').returncode)
+        for key, value in expected.items():
+            self.assertEqual(value, json.loads((self.root / 'prefs.json').read_text())[key])
+        self.assertEqual(2, len((self.root / 'sets').read_text().splitlines()))
+        self.assertTrue((self.state / 'fresh-defaults.pending').exists())
+        self.assertFalse((self.state / 'hostname.initialized').exists())
+
+        self.cli('up', '--auth-key=fixture')
+        saved = json.loads((self.state / 'tailscaled.state').read_text())
+        self.assertTrue(saved['profile']['ID'])
+        self.assertTrue(saved['profile']['Key'])
+        for key, value in expected.items():
+            self.assertEqual(value, saved['prefs'][key])
+        before_restart = (self.root / 'sets').read_text()
+        self.assertEqual(0, self.run_command('restart').returncode)
+        self.assertEqual(before_restart, (self.root / 'sets').read_text())
+        self.assertFalse((self.state / 'fresh-defaults.pending').exists())
+        self.assertTrue((self.state / 'hostname.initialized').exists())
+
+    def test_fresh_defaults_preserve_explicit_choices_before_and_after_login(self):
+        self.write_status(backend='NeedsLogin', peers=False, TailscaleIPs=[])
+        self.start()
+        self.cli('set', '--hostname=admin-name', '--accept-dns=true', '--accept-routes=true',
+                 '--exit-node=100.100.1.9', '--advertise-routes=192.0.2.0/24')
+        choices = json.loads((self.root / 'prefs.json').read_text())
+        writes = (self.root / 'sets').read_text()
+        self.start()
+        time.sleep(2)
+        self.assertEqual(choices, json.loads((self.root / 'prefs.json').read_text()))
+        self.assertEqual(writes, (self.root / 'sets').read_text())
+
+        self.cli('up', '--auth-key=fixture')
+        self.cli('set', '--hostname=after-login', '--advertise-routes=198.51.100.0/24')
+        choices = json.loads((self.root / 'prefs.json').read_text())
+        writes = (self.root / 'sets').read_text()
+        self.start()
+        self.assertFalse((self.state / 'fresh-defaults.pending').exists())
+        self.assertEqual(0, self.run_command('restart').returncode)
+        self.assertEqual(choices, json.loads((self.root / 'prefs.json').read_text()))
+        self.assertEqual(writes, (self.root / 'sets').read_text())
+
+    def test_existing_profile_retires_stale_fresh_marker_without_rewriting_preferences(self):
+        (self.state / 'tailscaled.state').write_text('IMPORTED')
+        choices = {'Hostname': 'admin-name', 'CorpDNS': True, 'RouteAll': True,
+                   'LoggedOut': True, 'ExitNodeIP': '100.100.1.9',
+                   'AdvertiseRoutes': ['192.0.2.0/24']}
+        (self.root / 'prefs.json').write_text(json.dumps(choices))
+        (self.state / 'fresh-defaults.pending').touch()
+        self.write_status(backend='NeedsLogin', peers=False, TailscaleIPs=[])
         self.start()
         self.assertFalse((self.root / 'sets').exists())
+        self.assertEqual(choices, json.loads((self.root / 'prefs.json').read_text()))
+        self.assertFalse((self.state / 'fresh-defaults.pending').exists())
+
+    def test_profile_persistence_projection_is_strict_and_secret_free(self):
+        cases = [
+            ('profile-persisted', {'ID': '', 'Key': '', 'PrivateKey': 'PRIVATE_SENTINEL'}, 'false'),
+            ('profile-persisted', {'ID': 'fixture', 'Key': 'profile-fixture',
+                                   'PrivateKey': 'PRIVATE_SENTINEL'}, 'true'),
+            ('profile-history', {'_machinekey': 'PRIVATE_SENTINEL'}, 'false'),
+            ('profile-history', {'_profiles': 'e30=', '_machinekey': 'PRIVATE_SENTINEL'}, 'true'),
+        ]
+        for action, payload, expected in cases:
+            with self.subTest(action=action, payload=payload):
+                result = subprocess.run(['awk', '-v', 'action=' + action,
+                                         '-f', str(self.scripts / 'json.awk')],
+                                        input=json.dumps(payload), text=True, capture_output=True)
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual(expected, result.stdout.strip())
+                self.assertNotIn('PRIVATE_SENTINEL', result.stdout + result.stderr)
+        for payload in [{'ID': '', 'Key': 'profile-fixture'}, {'ID': True, 'Key': 'profile-fixture'}, {}]:
+            result = subprocess.run(['awk', '-v', 'action=profile-persisted',
+                                     '-f', str(self.scripts / 'json.awk')],
+                                    input=json.dumps(payload), text=True, capture_output=True)
+            self.assertNotEqual(0, result.returncode)
+
+    def test_first_login_and_logout_before_restart_retires_fresh_defaults(self):
+        self.start()
+        self.cli('up', '--auth-key=fixture')
+        self.cli('logout')
+        writes = (self.root / 'sets').read_text()
+        self.assertTrue((self.state / 'fresh-defaults.pending').exists())
+        self.assertEqual(0, self.run_command('restart').returncode)
+        self.assertEqual(writes, (self.root / 'sets').read_text())
+        self.assertTrue(json.loads((self.root / 'prefs.json').read_text())['CorpDNS'])
+        self.assertFalse((self.state / 'fresh-defaults.pending').exists())
+        self.cli('set', '--hostname=logged-out-choice', '--accept-dns=true')
+        choices = json.loads((self.root / 'prefs.json').read_text())
+        writes = (self.root / 'sets').read_text()
+        self.start()
+        self.assertEqual(choices, json.loads((self.root / 'prefs.json').read_text()))
+        self.assertEqual(writes, (self.root / 'sets').read_text())
 
     def test_existing_identity_never_rewrites_preferences(self):
         (self.state / 'tailscaled.state').write_text('IMPORTED')

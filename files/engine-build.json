@@ -1,0 +1,29 @@
+{
+  "binaries": {
+    "tailscale-arm": "70514a60472311c8cd4878e8f6fe5ea9ce37998886589ccf612157a1d662e1c7",
+    "tailscale-arm64": "b198b305bdc45c210927a32c4f745a75a6b07d5b6a40c896c04b49a401e1a17c",
+    "tailscaled-arm": "31a8f681275e109d7d2de124973feb3b6a1601d8b9583a4c8f411cc6d14a7dde",
+    "tailscaled-arm64": "8f3354a2b283b3d6c609dbb4f29e6bdd161e248ee49e9537d09355cbce4ddc54"
+  },
+  "build": {
+    "CGO_ENABLED": "0",
+    "GOARM": "7",
+    "GOOS": "linux",
+    "buildvcs": false,
+    "ldflags": "-s -w -buildid= -X tailscale.com/version.shortStamp=1.104.2 -X tailscale.com/version.longStamp=1.104.2-kst-android-compat-1-66ea973eaab0 -X tailscale.com/version.gitCommitStamp=c3430f0d2b8a1d646ad3ae867e3470bac07f1fe0",
+    "tags": "ts_omit_clientupdate",
+    "trimpath": true
+  },
+  "compatibility": "android-compat-1",
+  "longVersion": "1.104.2-kst-android-compat-1-66ea973eaab0",
+  "patchSetSha256": "66ea973eaab00918e206fb131462fae83e95f6225043b5fca60f05a2c12ce4d4",
+  "patches": {
+    "0001-old-kernel-netlink.patch": "705e7602e9d18aa1fdfdc255b87806c8ac6fb8df22032b4ec7bf7eeb83303d19",
+    "0002-android-dns.patch": "e7ca36f57891c63fe62a23c920a34619c38957e0a934c32c00fda4bce4a8a9d5"
+  },
+  "sourceSha256": "4c1c806e16507414a1459afcdc399f6a1323c21a1ac90f07bea0465fd8fd7e1d",
+  "sourceUrl": "https://github.com/tailscale/tailscale/archive/refs/tags/v1.104.2.tar.gz",
+  "toolchain": "go1.27.3",
+  "upstreamCommit": "c3430f0d2b8a1d646ad3ae867e3470bac07f1fe0",
+  "upstreamVersion": "1.104.2"
+}

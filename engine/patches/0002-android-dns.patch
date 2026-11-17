@@ -1,0 +1,236 @@
+--- a/feature/androiddns/auto.go
++++ b/feature/androiddns/auto.go
+@@ -6,7 +6,6 @@
+ package androiddns
+ 
+ import (
+-	"net"
+ 	"os"
+ 	"runtime"
+ 
+@@ -32,8 +31,7 @@
+ 	if resolvConfExists() || !onAndroid() || !available() {
+ 		return
+ 	}
+-	net.DefaultResolver.PreferGo = true
+-	net.DefaultResolver.Dial = resolverDial
++	installResolver()
+ }
+ 
+ // onAndroid reports whether the process is running on Android, even
+--- a/feature/androiddns/resolver.go
++++ b/feature/androiddns/resolver.go
+@@ -12,6 +12,8 @@
+ 	"os"
+ 	"sync"
+ 	"time"
++
++	"tailscale.com/net/dnscache"
+ )
+ 
+ // NewResolver returns a net.Resolver that resolves names via the
+@@ -21,6 +23,16 @@
+ 		PreferGo: true,
+ 		Dial:     resolverDial,
+ 	}
++}
++
++// installResolver is called at init after confirming dnsproxyd is usable.
++func installResolver() {
++	net.DefaultResolver.PreferGo = true
++	net.DefaultResolver.Dial = resolverDial
++	// dnscache constructs its own resolver, also copied by controlclient and
++	// controlhttp. Reuse the Android resolver rather than leaving those
++	// lookups to Go's unusable localhost defaults.
++	dnscache.Get().Forward = net.DefaultResolver
+ }
+ 
+ // resolverDial is a net.Resolver.Dial hook. It ignores the network
+--- a/feature/androiddns/androiddns.go
++++ b/feature/androiddns/androiddns.go
+@@ -63,8 +63,8 @@
+ // The plausible residual risk is not protocol change but a future
+ // policy tightening that distinguishes callers, so users of this
+ // package should treat it as best effort; the automatic installation
+-// into net.DefaultResolver (see auto.go) probes the socket with a
+-// connect first and leaves the resolver alone on failure.
++// into net.DefaultResolver and dnscache (see auto.go) probes the socket
++// with a connect first and leaves the resolvers alone on failure.
+ //
+ // # Scope and gating
+ //
+@@ -77,10 +77,11 @@
+ // property service's backing store, present since Android 5.0 and
+ // never on regular Linux), and a successful dnsproxyd connect.
+ //
+-// This is an optional feature, included by default in tailscaled
+-// builds on Linux and Android; build with the ts_omit_androiddns tag
+-// to omit it. It is not linked into tsnet by default; tsnet apps and
+-// other programs opt in with a blank import of this package.
++// This is an optional feature, included by default in tailscale and
++// tailscaled builds on Linux and Android; build with the
++// ts_omit_androiddns tag to omit it. It is not linked into tsnet by
++// default; tsnet apps and other programs opt in with a blank import
++// of this package.
+ package androiddns
+ 
+ import (
+--- a/feature/androiddns/androiddns_test.go
++++ b/feature/androiddns/androiddns_test.go
+@@ -14,10 +14,12 @@
+ 	"path/filepath"
+ 	"slices"
+ 	"strings"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 
+ 	"golang.org/x/net/dns/dnsmessage"
++	"tailscale.com/net/dnscache"
+ 	"tailscale.com/tstest"
+ )
+ 
+@@ -225,3 +227,59 @@
+ 		t.Errorf("LookupNetIP = %v; want both %v and %v", addrs, want4, want6)
+ 	}
+ }
++
++// TestDNSCacheResolver covers the forwarder copied by controlclient and
++// controlhttp, not just net.DefaultResolver. A cache miss must reach Android's
++// resolver and subsequent lookups must use the cached answer.
++func TestDNSCacheResolver(t *testing.T) {
++	for _, legacy := range []bool{false, true} {
++		name := "resnsend"
++		if legacy {
++			name = "getaddrinfo"
++		}
++		t.Run(name, func(t *testing.T) {
++			var served func() int32
++			if legacy {
++				served = startFakeLegacyDaemon(t, legacyLookup).Load
++			} else {
++				var queries atomic.Int32
++				startFakeDaemon(t, func(query []byte) ([]byte, int32) {
++					queries.Add(1)
++					return dnsAnswer(t, query), 0
++				})
++				served = queries.Load
++			}
++
++			tstest.Replace(t, &net.DefaultResolver, &net.Resolver{})
++			// A missed installation fails locally, without consulting host DNS.
++			tstest.Replace(t, &dnscache.Get().Forward, &net.Resolver{
++				PreferGo: true,
++				Dial: func(context.Context, string, string) (net.Conn, error) {
++					return nil, errClosed
++				},
++			})
++			installResolver()
++			cache := &dnscache.Resolver{Forward: dnscache.Get().Forward}
++			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++			defer cancel()
++			for i := range 2 {
++				before := served()
++				ip, ip6, all, err := cache.LookupIP(ctx, "example.com.")
++				if err != nil {
++					t.Fatal(err)
++				}
++				want4 := netip.MustParseAddr("1.2.3.4")
++				want6 := netip.MustParseAddr("::6")
++				if ip != want4 || ip6 != want6 || !slices.Contains(all, want4) || !slices.Contains(all, want6) {
++					t.Fatalf("LookupIP = %v, %v, %v; want %v and %v", ip, ip6, all, want4, want6)
++				}
++				if i == 0 && served() == before {
++					t.Fatal("cache miss did not query Android's resolver")
++				}
++				if i == 1 && served() != before {
++					t.Fatal("cache hit queried Android's resolver")
++				}
++			}
++		})
++	}
++}
+--- /dev/null
++++ b/cmd/tailscale/androiddns_linux.go
+@@ -0,0 +1,10 @@
++// Copyright (c) Tailscale Inc & contributors
++// SPDX-License-Identifier: BSD-3-Clause
++
++//go:build linux && !ts_omit_androiddns
++
++package main
++
++// Standalone commands such as netcheck resolve names without tailscaled.
++// androiddns activates only when running on Android without a usable resolver.
++import _ "tailscale.com/feature/androiddns"
+--- a/cmd/tailscale/deps_test.go
++++ b/cmd/tailscale/deps_test.go
+@@ -7,6 +7,7 @@
+ 	"testing"
+ 
+ 	"tailscale.com/tstest/deptest"
++	"tailscale.com/util/set"
+ )
+ 
+ func TestOmitQRCodes(t *testing.T) {
+@@ -20,3 +21,29 @@
+ 		},
+ 	}.Check(t)
+ }
++
++func TestAndroidDNSFeature(t *testing.T) {
++	const pkg = "tailscale.com/feature/androiddns"
++	for _, goos := range []string{"linux", "android"} {
++		for _, omit := range []bool{false, true} {
++			tags := ""
++			if omit {
++				tags = "ts_omit_androiddns"
++			}
++			t.Run(goos+"/"+tags, func(t *testing.T) {
++				check := deptest.DepChecker{
++					GOOS:     goos,
++					GOARCH:   "arm64",
++					Tags:     tags,
++					ExtraEnv: []string{"CGO_ENABLED=0"},
++				}
++				if omit {
++					check.BadDeps = map[string]string{pkg: "unexpected with ts_omit_androiddns"}
++				} else {
++					check.WantDeps = set.Of(pkg)
++				}
++				check.Check(t)
++			})
++		}
++	}
++}
+--- a/net/dns/manager_test.go
++++ b/net/dns/manager_test.go
+@@ -8,6 +8,7 @@
+ 	"context"
+ 	"errors"
+ 	"io"
++	"io/fs"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/netip"
+@@ -263,6 +264,20 @@
+ 				Hosts: hosts(
+ 					"dave.ts.com.", "1.2.3.4",
+ 					"bradfitz.ts.com.", "2.3.4.5"),
++			},
++		},
++		{
++			// Standalone Android/Linux binaries need no resolv.conf when
++			// --accept-dns=false. Keep local records without reading or
++			// replacing the OS's DNS configuration.
++			name: "accept-dns-false-with-missing-resolv-conf",
++			in: Config{
++				AcceptDNS: false,
++				Hosts:     hosts("peer.ts.net.", "100.64.0.1"),
++			},
++			bsErr: fs.ErrNotExist,
++			rs: resolver.Config{
++				Hosts: hosts("peer.ts.net.", "100.64.0.1"),
+ 			},
+ 		},
+ 		{

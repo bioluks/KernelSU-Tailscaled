@@ -1,4 +1,5 @@
 import hashlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -246,6 +247,23 @@ class PackageVerifierTests(unittest.TestCase):
         entries = good_entries()
         entries.pop("files/VERSION.txt")
         self.assert_rejected(entries, "missing required entry: files/VERSION.txt")
+
+    def test_rejects_compatibility_payload_with_unrelated_provenance(self) -> None:
+        entries = good_entries()
+        entries["tailscale/config/engine-compat"] = b"android-compat-1\n"
+        provenance = {
+            "compatibility": "android-compat-1", "upstreamVersion": "1.102.3",
+            "binaries": {f"{program}-{arch}": hashlib.sha256(entries[f"files/{program}-{arch}"]).hexdigest()
+                         for arch in ("arm", "arm64") for program in ("tailscale", "tailscaled")},
+        }
+        provenance["binaries"]["tailscaled-arm64"] = "0" * 64
+        entries["engine-build.json"] = json.dumps(provenance).encode()
+        self.assert_rejected(with_bundles(entries), "engine provenance hash mismatch: tailscaled-arm64")
+
+    def test_rejects_compatibility_payload_without_provenance(self) -> None:
+        entries = good_entries()
+        entries["tailscale/config/engine-compat"] = b"android-compat-1\n"
+        self.assert_rejected(with_bundles(entries), "invalid engine provenance")
 
     def test_rejects_dot_path(self) -> None:
         entries = good_entries()

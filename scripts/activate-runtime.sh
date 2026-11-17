@@ -16,6 +16,9 @@ kst_activate() (
   old=$(kst_current) || exit 1
   new=$(kst_generation "$candidate") || exit 1
   [ "$new" != "$old" ] || exit 0
+  # A compatibility bundle must not replace a newer separately installed engine.
+  # Check selection in a subshell before stopping the current generation.
+  BUNDLE_DIR="$new" sh -c '. "$BUNDLE_DIR/tailscale/scripts/engine-lib.sh"; engine_select' || exit 1
   if [ -n "$old" ]; then
     old_code=$(kst_prop "$old" versionCode)
     new_code=$(kst_prop "$new" versionCode)
