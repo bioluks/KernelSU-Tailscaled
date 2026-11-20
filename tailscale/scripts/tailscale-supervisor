@@ -8,7 +8,12 @@ unset KST_LOCK_HELD
 exec 8>"$RUN_DIR/supervisor.lock" || exit 1
 flock_command -n 8 || exit 0
 # Component teardown belongs to the controller, including when it holds FD 9.
-trap 'exit 0' TERM INT HUP
+sleep_pid=
+supervisor_exit() {
+  [ -z "$sleep_pid" ] || kill "$sleep_pid" 2>/dev/null || true
+  exit 0
+}
+trap supervisor_exit TERM INT HUP
 supervisor_owner=$$
 
 reconcile() {
@@ -90,6 +95,9 @@ while :; do
       backoff=$((backoff * 2))
       [ "$backoff" -le "$RESTART_BACKOFF_MAX" ] || backoff=$RESTART_BACKOFF_MAX ;;
   esac
-  sleep "$delay" 8>&-
+  sleep "$delay" 8>&- &
+  sleep_pid=$!
+  wait "$sleep_pid" 2>/dev/null || true
+  sleep_pid=
   maintenance_in=$((maintenance_in - delay))
 done

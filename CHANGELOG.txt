@@ -1,3 +1,14 @@
+v3.3.1 (bioluks) - Fix KernelSU upgrade stop timeout and process race
+
+- Fix module upgrade failure ("current-stop-failed") during in-place upgrade
+  by making supervisor background sleep interruptible immediately on SIGTERM.
+- Increase default shutdown timeout (KST_STOP_TIMEOUT) from 3s to 6s and export it
+  during generation upgrades, preventing timeouts against older running supervisors.
+- Add bounded retry loop in stop_owned for process exit verification, preventing
+  premature failures while the OS kernel cleans up terminated processes.
+- Add graceful stop retry in activate-runtime before reporting current-stop-failed.
+- VersionCode 30030001 advances v3.3.0.
+
 v3.3.0 (bioluks) — Live Tailscale DNS on/off switch in WebUI
 
 - Add live Tailscale DNS on/off toggle button to the WebUI Network section,

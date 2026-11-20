@@ -33,7 +33,7 @@ KST_BUSYBOX=${KST_BUSYBOX:-/data/adb/ksu/bin/busybox}
 KST_LOCK_TIMEOUT=${KST_LOCK_TIMEOUT:-15}
 KST_CLI_TIMEOUT=${KST_CLI_TIMEOUT:-3}
 KST_START_TIMEOUT=${KST_START_TIMEOUT:-15}
-KST_STOP_TIMEOUT=${KST_STOP_TIMEOUT:-3}
+KST_STOP_TIMEOUT=${KST_STOP_TIMEOUT:-6}
 KST_STAGED_DIR=${KST_STAGED_DIR:-/data/adb/modules_update/kernelsu-tailscaled}
 export BUNDLE_DIR MODDIR TS_DIR KST_SHELL KST_BUSYBOX
 umask 077
@@ -288,6 +288,11 @@ stop_owned() {
       fi
     fi
   fi
+  count=0
+  while ! record_process_gone "$file" && [ "$count" -lt 20 ]; do
+    sleep 0.05
+    count=$((count + 1))
+  done
   if ! record_process_gone "$file"; then
     log ERROR "Process identity unresolved; retained ${file##*/} and blocked replacement"
     return 1

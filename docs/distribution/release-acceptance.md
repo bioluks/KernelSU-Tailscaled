@@ -67,3 +67,12 @@ Direct hardware verification on OnePlus 9 Pro (LE2123) over USB ADB verified liv
 toggling via `control.sh enable-dns`, `control.sh disable-dns` and `control.sh toggle-dns`
 and preference persistence across daemon restarts. Full test suites (Vitest, Playwright,
 Python runtime behavior) passed clean.
+
+## v3.3.1 authorization (2026-11-21)
+
+The maintainer reported an in-place upgrade failure (`current-stop-failed` / retained
+supervisor process record) when flashing through KernelSU Manager. The root cause
+(foreground mksh trap blocking during supervisor sleep and a 3-second stop timeout race)
+was diagnosed, reproduced, and fixed with interruptible sleep, exported 6s stop timeouts,
+a bounded process verification loop in `stop_owned`, and a stop retry in `activate-runtime.sh`.
+Full test suites and shellcheck passed clean. This authorizes publication of v3.3.1.
