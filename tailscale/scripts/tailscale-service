@@ -235,6 +235,26 @@ login_server() {
   done
   printf '{"controlURL":"%s","authURL":%s}\n' "$server" "$auth"
 }
+dns_set() {
+  local target="$1"
+  if module_disabled || migration_required || [ -f "$TS_DIR/migration-awaiting-enable" ]; then
+    echo 'Enable the module and complete any migration before changing DNS settings' >&2; return 1
+  fi
+  daemon_running || { echo 'The owned Tailscale daemon must be running' >&2; return 1; }
+  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" set "--accept-dns=$target" >/dev/null 2>&1 || {
+    echo 'Could not update Tailscale DNS setting' >&2; return 1
+  }
+}
+
+dns_toggle() {
+  local current
+  current=$(cli_json prefs debug prefs 2>/dev/null | json_read accept-dns 2>/dev/null)
+  if [ "$current" = true ]; then
+    dns_set false
+  else
+    dns_set true
+  fi
+}
 
 case "$1" in
   enable) with_control_lock runtime_enable ;;
@@ -249,8 +269,11 @@ case "$1" in
   diagnostics) status_json; runtime_logs ;;
   web-restart) with_control_lock web_restart ;;
   login-server) with_control_lock login_server ;;
+  enable-dns) with_control_lock dns_set true ;;
+  disable-dns) with_control_lock dns_set false ;;
+  toggle-dns) with_control_lock dns_toggle ;;
   taildrop-save-dir) with_control_lock taildrop_save_directory ;;
   taildrop-targets) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_targets ;;
   taildrop-send) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_send ;;
-  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
+  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|enable-dns|disable-dns|toggle-dns|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
 esac

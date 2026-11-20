@@ -141,6 +141,10 @@ END {
         id=member(root,"ExitNodeID"); if(value[id]!="" && value[id]!="\"\"" && value[id]!="null") print "exit"
         id=member(root,"ExitNodeIP"); if(value[id]!="" && value[id]!="\"\"" && value[id]!="null" && value[id]!="\"0.0.0.0\"") print "exit"
         if(first[member(root,"AdvertiseRoutes")]) print "advertised"
+    } else if(action=="accept-dns") {
+        id=member(root,"CorpDNS")
+        if(value[id]!="true" && value[id]!="false") fail()
+        print value[id]
     } else if(action=="stable-version") {
         id=member(root,"TarballsVersion"); if(type[id]!="string") fail()
         s=substr(value[id],2,length(value[id])-2)

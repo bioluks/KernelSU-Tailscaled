@@ -4,6 +4,7 @@ import {
   Copy,
   createIcons,
   ExternalLink,
+  Globe,
   Import,
   ListChecks,
   PackageCheck,
@@ -35,7 +36,7 @@ let redraw: () => void = () => renderMessage(root, t("Reading status", "正在�
 
 function drawIcons(): void {
   createIcons({
-    icons: { ArrowLeft, Circle, Copy, ExternalLink, Import, ListChecks, PackageCheck, Power, PowerOff, RefreshCw, RotateCw, ScrollText, Stethoscope },
+    icons: { ArrowLeft, Circle, Copy, ExternalLink, Globe, Import, ListChecks, PackageCheck, Power, PowerOff, RefreshCw, RotateCw, ScrollText, Stethoscope },
     attrs: { "stroke-width": 2, width: 18, height: 18 },
   });
 }
@@ -174,8 +175,17 @@ async function handleAction(action: string): Promise<void> {
       case "restart":
       case "migrate-legacy":
       case "apply-staged":
+      case "enable-dns":
+      case "disable-dns":
         await execute(action);
         await refreshStatus();
+        if (action === "enable-dns" || action === "disable-dns") {
+          const msg = action === "enable-dns"
+            ? t("Tailscale DNS enabled", "Tailscale DNS 已启用")
+            : t("Tailscale DNS disabled", "Tailscale DNS 已停用");
+          announce(msg);
+          toast(msg);
+        }
         break;
     }
   } catch (error) {

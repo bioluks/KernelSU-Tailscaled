@@ -19,8 +19,9 @@ export type ModuleAction =
   | "engine-apply"
   | "apply-staged"
   | "login-server"
-  | "taildrop-save-dir";
-
+  | "taildrop-save-dir"
+  | "enable-dns"
+  | "disable-dns";
 export interface CommandResult {
   stdout: string;
   stderr: string;
@@ -41,6 +42,8 @@ const ACTIONS: ReadonlySet<string> = new Set([
   "apply-staged",
   "login-server",
   "taildrop-save-dir",
+  "enable-dns",
+  "disable-dns",
   "engine-status", "engine-check", "engine-prepare", "engine-apply",
 ]);
 

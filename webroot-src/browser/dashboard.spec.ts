@@ -35,6 +35,8 @@ async function mockBridge(page: Page, status: unknown) {
           components: { supervisor: "stopped", daemon: "stopped", dataPlane: "stopped", web: "stopped" },
           diagnostics: [{ code: "migration-awaiting-enable", severity: "info", message: "Migrated identity is preserved; explicit enable or start is required" }],
         };
+        if (action === "enable-dns") fixture.status = { ...running, prefs: { ...running.prefs, CorpDNS: true } };
+        if (action === "disable-dns") fixture.status = { ...running, prefs: { ...running.prefs, CorpDNS: false } };
         if (action === "apply-staged" || action === "enable") fixture.status = running;
         const error = fixture.failures[action];
         setTimeout(() => {
@@ -141,4 +143,15 @@ test("official panel navigation stays on the fixed loopback address", async ({ p
   await page.route("http://127.0.0.1:8088/**", (route) => route.fulfill({ body: "Official panel fixture", contentType: "text/plain" }));
   await page.locator('[data-action="open-panel"]').click();
   await expect(page).toHaveURL("http://127.0.0.1:8088/");
+});
+
+test("toggles Tailscale DNS setting interactively", async ({ page }) => {
+  await mockBridge(page, running);
+  const button = page.locator('[data-action="enable-dns"]');
+  await expect(button).toHaveText("Enable Tailscale DNS");
+  await button.click();
+  const disableButton = page.locator('[data-action="disable-dns"]');
+  await expect(disableButton).toHaveText("Disable Tailscale DNS");
+  await expect(page.locator(".notice")).toContainText("Tailscale DNS enabled");
+  await checkLayout(page);
 });

@@ -189,6 +189,37 @@ class RuntimeBehaviorTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, '')
 
+    def test_dns_toggle_actions_mutate_preferences(self):
+        self.start()
+        result = subprocess.run(['/bin/sh', str(self.service), 'enable-dns'],
+                                env=self.env, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        prefs = json.loads((self.root / 'prefs.json').read_text())
+        self.assertTrue(prefs['CorpDNS'])
+        status = self.status()
+        self.assertTrue(status['prefs']['CorpDNS'])
+
+        result = subprocess.run(['/bin/sh', str(self.service), 'disable-dns'],
+                                env=self.env, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        prefs = json.loads((self.root / 'prefs.json').read_text())
+        self.assertFalse(prefs['CorpDNS'])
+
+        result = subprocess.run(['/bin/sh', str(self.service), 'toggle-dns'],
+                                env=self.env, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        prefs = json.loads((self.root / 'prefs.json').read_text())
+        self.assertTrue(prefs['CorpDNS'])
+
+    def test_dns_actions_reject_stopped_or_disabled_runtime(self):
+        result = subprocess.run(['/bin/sh', str(self.service), 'enable-dns'],
+                                env=self.env, capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(result.returncode, 0)
+        self.start()
+        (self.mod / 'disable').touch()
+        result = subprocess.run(['/bin/sh', str(self.service), 'enable-dns'],
+                                env=self.env, capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(result.returncode, 0)
     def test_native_health_rejects_missing_interface(self):
         (self.root / 'link').unlink()
         result = subprocess.run(['/bin/sh', str(self.scripts / 'tailscale-tunnel'), 'health'], env=self.env)

@@ -240,4 +240,18 @@ describe("dashboard actions", () => {
     expect(vi.mocked(exec).mock.calls.some(([command]) => command.endsWith(" restart"))).toBe(false);
     expect(button("open-panel")?.disabled).toBe(false);
   });
+  it("toggles Tailscale DNS and refreshes status", async () => {
+    await boot(running);
+    expect(button("enable-dns").textContent).toContain("Enable Tailscale DNS");
+    const enabled = { ...running, prefs: { ...running.prefs, CorpDNS: true } };
+    vi.mocked(exec).mockClear();
+    vi.mocked(exec)
+      .mockResolvedValueOnce(result(""))
+      .mockResolvedValueOnce(result(JSON.stringify(enabled)));
+    button("enable-dns").click();
+    await settled();
+    expect(vi.mocked(exec).mock.calls.map(([command]) => command.split(" ").at(-1))).toEqual(["enable-dns", "status-json"]);
+    expect(button("disable-dns").textContent).toContain("Disable Tailscale DNS");
+    expect(toast).toHaveBeenCalledWith("Tailscale DNS enabled");
+  });
 });

@@ -62,6 +62,8 @@ function addButton(parent: HTMLElement, action: string, label: string, title: st
     "migration-status": "list-checks",
     "migrate-legacy": "import",
     "apply-staged": "package-check",
+    "enable-dns": "globe",
+    "disable-dns": "globe",
   };
   const button = document.createElement("button");
   button.type = "button";
@@ -152,8 +154,15 @@ export function renderDashboard(root: HTMLElement, status: RuntimeStatus): void 
   addFact(facts, t("Accept DNS", "接受 DNS"), preference(status.acceptDNS));
   addFact(facts, t("Exit node", "出口节点"), valueOrDash(status.exitNode));
   network.append(facts);
+  if (status.acceptDNS !== null) {
+    const dnsAction = status.acceptDNS ? "disable-dns" : "enable-dns";
+    const dnsLabel = status.acceptDNS
+      ? t("Disable Tailscale DNS", "停用 Tailscale DNS")
+      : t("Enable Tailscale DNS", "启用 Tailscale DNS");
+    const dnsButton = addButton(network, dnsAction, dnsLabel, dnsLabel);
+    dnsButton.disabled = !status.enabled || status.components.daemon !== "running" || migrationRequired || awaitingEnable;
+  }
   root.append(network);
-
   const health = document.createElement("section");
   appendText(health, "h2", t("Components", "组件"));
   const components = document.createElement("div");
