@@ -1,3 +1,14 @@
+v3.3.0 (bioluks) — Live Tailscale DNS on/off switch in WebUI
+
+- Add live Tailscale DNS on/off toggle button to the WebUI Network section,
+  allowing immediate toggling of Tailscale MagicDNS / CorpDNS acceptance
+  without restarting the daemon or phone.
+- Expose direct DNS control actions in the module control command:
+  `control.sh enable-dns`, `control.sh disable-dns`, and `control.sh toggle-dns`.
+- Persist DNS preferences across daemon restarts in `tailscaled.state`.
+- Full localization support in English and Simplified Chinese for DNS toggles and status toasts.
+- VersionCode 30030000 advances v3.2.0 and local development builds.
+
 v3.2.0 (bioluks) — Native Android compatibility & Built from Source
 
 - Build Tailscale binaries completely from scratch from pinned upstream v1.104.2 source;

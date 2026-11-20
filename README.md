@@ -35,6 +35,7 @@ base, the changes extend everyday use, not just installation or bug fixes:
 | **English and Chinese interfaces** | English by default in both the WebUI and companion, with remembered Simplified Chinese selection. The WebUI has a language selector; the app has a dedicated Settings page, including send-confirmation and receive-notification controls. |
 | **Integrated Headscale sign-in** | A custom control-server URL and explicit registration flow in the WebUI, with confirmation before switching servers. Uses upstream's existing Headscale support and retains other network preferences; no manual login command is needed for this flow. |
 | **Lower idle supervisor overhead** | Fewer external process/property lookups, time-bounded status probes, less frequent Manager metadata work and no unchanged-description rewrites. Process recovery remains active even before login. The measured reduction is in supervisor CPU, not a claimed battery-life improvement. |
+| **Live Tailscale DNS on/off switch** | Toggle Tailscale MagicDNS / CorpDNS acceptance directly in the WebUI Network section with one click, or via module commands (`enable-dns`, `disable-dns`, `toggle-dns`). Takes effect live without restarting the daemon or phone. |
 | **Companion release integration** | A separately installable, release-signed APK alongside universal, ARM64 and ARM module ZIPs. Release gates check APK signing, reproducible unsigned APK bytes and the exact four-asset release set. |
 
 Usage and limits: [Taildrop](#taildrop-on-android),

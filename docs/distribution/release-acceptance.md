@@ -55,3 +55,15 @@ UDP, hash-matched transfers, preference/identity continuity and an explicitly
 authorized boot test. v3.2.0 promotes the same engine/runtime/app source with
 release metadata and documentation changes. The candidate evidence and remaining
 limits are in `docs/verification/2026-11-17-f1-native-compatibility.md`.
+
+## v3.3.0 authorization (2026-11-20)
+
+The maintainer explicitly requested separate-branch development for the live
+Tailscale DNS on/off switch in the WebUI, merging into `all-features-merged`, and
+publishing a new release highlighting the added Tailscale DNS switch.
+This authorizes GitHub publication after CI passes and exact stable artifacts
+are verified; no additional manual acceptance prompt is required.
+Direct hardware verification on OnePlus 9 Pro (LE2123) over USB ADB verified live
+toggling via `control.sh enable-dns`, `control.sh disable-dns` and `control.sh toggle-dns`
+and preference persistence across daemon restarts. Full test suites (Vitest, Playwright,
+Python runtime behavior) passed clean.
