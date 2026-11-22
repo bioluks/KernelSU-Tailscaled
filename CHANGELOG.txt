@@ -1,8 +1,9 @@
-Unreleased
+v3.3.2 (bioluks) - Live upgrade handoff and DNS safety
 
 - Limit the longer shutdown timeout to the previous runtime's upgrade handoff.
 - Distinguish a staged update from a selected runtime awaiting KernelSU promotion.
 - Leave DNS preferences unchanged when the current setting cannot be read.
+- Version code 30030004 upgrades v3.3.1 and both local v3.3.2 test builds.
 
 v3.3.1 (bioluks) - Fix KernelSU upgrade stop timeout and process race
 
