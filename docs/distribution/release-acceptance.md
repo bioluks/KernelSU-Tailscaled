@@ -98,3 +98,29 @@ staging cleanup, and post-reboot activation were not verified. These local test
 builds are not approved for publication.
 The test.2 runtime uses version code `30030003`. An in-place upgrade on these
 two devices must use a higher code; different bytes at the same code are rejected.
+
+## v3.3.2 stable verification
+
+Version code `30030004` advances v3.3.1 and both local test candidates. All
+three ZIPs passed package verification and matched the Linux rebuild of the
+committed source byte for byte.
+
+| ZIP | SHA-256 |
+| --- | --- |
+| `KernelSU-Tailscaled-v3.3.2.zip` | `37116543aab083d9e2d650aa51caca3ba3ea44a7c9adcd9c313e7b8e39a81b7e` |
+| `KernelSU-Tailscaled-arm-v3.3.2.zip` | `4bd19343c58045f9ce0832cbf5edf12ecdd895abd8a565afa12eacbdb6a3a75e` |
+| `KernelSU-Tailscaled-arm64-v3.3.2.zip` | `d99771926f074f793bb995c7d0c5bcfd5bbca916171732c9e76840a9d4e3d1ea` |
+
+KernelSU-Next Manager flashed the exact universal ZIP on the Poco F1 and the
+exact ARM64 ZIP on the OnePlus 9 Pro, both upgrading from `3.3.2-test.2`.
+Both Managers reported Flash success. The running bundles and installed
+WebUI matched their ZIP manifests. The boot IDs, saved state, configuration,
+and projected preferences were unchanged; both supervisors and daemons ran.
+Both Manager WebUIs opened and reported v3.3.2 as the current runtime and as
+the staged version.
+
+No reboot was performed. Manager staging remained pending. The Poco still
+needed login and the OnePlus Headscale endpoint still refused connections.
+Neither phone had a tailnet IP, so peer connectivity, deferred cleanup, and
+post-reboot activation were not verified. The ARMv7 ZIP was verified offline
+only.
