@@ -248,12 +248,13 @@ dns_set() {
 
 dns_toggle() {
   local current
-  current=$(cli_json prefs debug prefs 2>/dev/null | json_read accept-dns 2>/dev/null)
-  if [ "$current" = true ]; then
-    dns_set false
-  else
-    dns_set true
-  fi
+  current=$(cli_json accept-dns debug prefs 2>/dev/null) || current=
+  case "$current" in
+    true) dns_set false ;;
+    false) dns_set true ;;
+    *) echo 'Could not determine current Tailscale DNS setting (CorpDNS); use enable-dns or disable-dns to set it explicitly' >&2
+       return 1 ;;
+  esac
 }
 
 case "$1" in

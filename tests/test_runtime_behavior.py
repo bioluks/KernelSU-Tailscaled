@@ -211,6 +211,42 @@ class RuntimeBehaviorTests(unittest.TestCase):
         prefs = json.loads((self.root / 'prefs.json').read_text())
         self.assertTrue(prefs['CorpDNS'])
 
+        result = self.run_command('toggle-dns')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(json.loads((self.root / 'prefs.json').read_text())['CorpDNS'])
+
+    def test_dns_toggle_rejects_unknown_state_without_mutating_preferences(self):
+        self.start()
+        prefs = self.root / 'prefs.json'
+        sets = self.root / 'sets'
+        sets_before = sets.read_bytes()
+        for payload in (None, b'{"Hostname":"fixture-phone"}', b'{"CorpDNS":null}',
+                        b'{"CorpDNS":"false"}', b'{"CorpDNS":true'):
+            with self.subTest(payload=payload):
+                if payload is None:
+                    prefs.unlink()  # The fake CLI's preferences read fails.
+                else:
+                    prefs.write_bytes(payload)
+
+                result = self.run_command('toggle-dns')
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('CorpDNS', result.stderr)
+                self.assertEqual(sets_before, sets.read_bytes())
+                self.assertEqual(payload, prefs.read_bytes() if prefs.exists() else None)
+
+    def test_explicit_dns_actions_work_without_corp_dns_preference(self):
+        self.start()
+        prefs = self.root / 'prefs.json'
+        for action, expected in (('enable-dns', True), ('disable-dns', False)):
+            with self.subTest(action=action):
+                prefs.write_text('{"Hostname":"fixture-phone"}')
+
+                result = self.run_command(action)
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(prefs.read_text()), {'Hostname': 'fixture-phone', 'CorpDNS': expected})
+
     def test_dns_actions_reject_stopped_or_disabled_runtime(self):
         result = subprocess.run(['/bin/sh', str(self.service), 'enable-dns'],
                                 env=self.env, capture_output=True, text=True, timeout=10)
