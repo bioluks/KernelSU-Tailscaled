@@ -240,9 +240,26 @@ public final class MainActivity extends Activity {
             if (listen.matches("127\\.0\\.0\\.1:[0-9]{1,5}")) panelUrl = "http://" + listen + "/";
             String description = state.getString("lifecycle") + " · " + state.getString("mode")
                     + "\nModule " + state.getString("moduleVersion") + " · Tailscale " + state.getString("tailscaleVersion");
-            if (self != null) description += "\n" + self.optString("DNSName", self.optString("HostName"));
-            if (tailscale != null) description += "\n" + tailscale.optString("BackendState") + " " + tailscale.optJSONArray("TailscaleIPs");
-            if (drop != null) description += "\nTaildrop: " + drop.optString("receiver") + "\n" + drop.optString("directory");
+            if (self != null) {
+                String name = self.optString("DNSName", self.optString("Hostname"));
+                if (!name.isEmpty() && !"null".equals(name)) description += "\n" + name;
+            }
+            if (tailscale != null) {
+                JSONArray ips = tailscale.optJSONArray("TailscaleIPs");
+                if (ips != null && ips.length() > 0) {
+                    StringBuilder list = new StringBuilder(ips.optString(0));
+                    for (int i = 1; i < ips.length(); i++) list.append(", ").append(ips.optString(i));
+                    description += "\n" + tailscale.optString("BackendState") + " · " + list;
+                } else {
+                    description += "\n" + tailscale.optString("BackendState");
+                }
+            }
+            if (drop != null) {
+                String receiver = drop.optString("receiver");
+                String directory = drop.optString("directory");
+                if (!receiver.isEmpty() && !"null".equals(receiver)) description += "\nTaildrop: " + receiver;
+                if (!directory.isEmpty() && !"null".equals(directory)) description += "\n" + directory;
+            }
             JSONArray diagnostics = state.optJSONArray("diagnostics");
             if (diagnostics != null) for (int i = 0; i < diagnostics.length(); i++)
                 description += "\n" + diagnostics.getJSONObject(i).optString("message");
