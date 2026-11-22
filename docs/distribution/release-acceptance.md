@@ -96,3 +96,5 @@ tailnet address before or after the test: the Poco needed login; the OnePlus's
 Headscale control endpoint refused connections. Peer connectivity, deferred
 staging cleanup, and post-reboot activation were not verified. These local test
 builds are not approved for publication.
+The test.2 runtime uses version code `30030003`. An in-place upgrade on these
+two devices must use a higher code; different bytes at the same code are rejected.
