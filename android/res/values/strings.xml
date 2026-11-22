@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Tailscaled Companion</string>
+    <string name="main_service">Service</string>
+    <string name="main_tools">Tools</string>
+    <string name="main_panel_summary">Module status, DNS and network settings</string>
+    <string name="main_logs_summary">View daemon and module logs</string>
+    <string name="main_send_summary">Send files to a device with Taildrop</string>
+    <string name="main_settings_summary">Language and notifications</string>
     <string name="status">Module status</string>
     <string name="refresh">Refresh</string>
     <string name="enable">Enable</string>

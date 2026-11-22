@@ -1,6 +1,6 @@
 # Android compatibility engine
 
-The bundled engine is built from Tailscale v1.104.2 plus the reviewed patches in
+The bundled engine is built from Tailscale v1.104.7 plus the reviewed patches in
 `patches/`. It is not an unmodified official Tailscale binary. Its long version
 contains `kst-android-compat-1` and the patch-set hash. `files/engine-build.json`
 records the upstream commit/archive hash, exact Go toolchain, patch hashes,
@@ -25,7 +25,7 @@ multi-network/VPN configuration is supported.
 ## Reproduce
 
 Python 3.12+ (tar extraction filters), Git, and Go are required. The recipe pins
-Go 1.27.3, verifies the upstream archive, applies patches to a fresh source tree,
+Go 1.27.4, verifies the upstream archive, applies patches to a fresh source tree,
 and builds static Linux ARMv7/ARM64 CLI and daemon binaries with trimmed paths
 and deterministic stamps:
 
@@ -56,8 +56,8 @@ activation refuses to downgrade a newer selected engine.
 
 ## Upstream references
 
-- https://github.com/tailscale/tailscale/tree/v1.104.2
-- https://github.com/tailscale/tailscale/blob/v1.104.2/net/netmon/interfaces_linux.go
-- https://github.com/tailscale/tailscale/blob/v1.104.2/net/netns/netns_linux.go
-- https://github.com/tailscale/tailscale/tree/v1.104.2/feature/androiddns
+- https://github.com/tailscale/tailscale/tree/v1.104.7
+- https://github.com/tailscale/tailscale/blob/v1.104.7/net/netmon/interfaces_linux.go
+- https://github.com/tailscale/tailscale/blob/v1.104.7/net/netns/netns_linux.go
+- https://github.com/tailscale/tailscale/tree/v1.104.7/feature/androiddns
 - https://github.com/mdlayher/netlink/blob/v1.11.2/conn_linux.go

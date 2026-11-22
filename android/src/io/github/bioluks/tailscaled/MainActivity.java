@@ -1,7 +1,10 @@
 package io.github.bioluks.tailscaled;
 
 import android.app.*;
+import android.content.res.ColorStateList;
+
 import android.content.*;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.*;
 import android.view.*;
@@ -13,18 +16,14 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private LinearLayout content;
+    private final ArrayList<View> controls = new ArrayList<>();
     private TextView status;
     private TextView result;
-    private final ArrayList<Button> controls = new ArrayList<>();
     private String panelUrl = "http://127.0.0.1:8088/";
     private boolean busy;
     private String displayedLanguage;
     private final SharedPreferences.OnSharedPreferenceChangeListener transferListener = (preferences, key) -> {
-        if ("transferRevision".equals(key)) {
-            result.setText(preferences.getString("lastTransfer", ""));
-            if (!busy) status.setText(R.string.status);
-        }
+        if ("transferRevision".equals(key)) showLastTransfer();
     };
 
     @Override protected void attachBaseContext(Context base) { super.attachBaseContext(AppLocale.wrap(base)); }
@@ -32,71 +31,171 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         displayedLanguage = AppLocale.language(this);
-        ScrollView scroll = new ScrollView(this);
-        content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(16), dp(20), dp(24));
-        scroll.addView(content);
-        setContentView(scroll);
-        scroll.setOnApplyWindowInsetsListener((view, insets) -> {
-            view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
-                    insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+        if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
+        else getWindow().getDecorView().setSystemUiVisibility(
+                getWindow().getDecorView().getSystemUiVisibility()
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(getColor(R.color.background));
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets safe = insets.getInsets(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+            } else {
+                view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            }
             return insets;
         });
-        TextView title = text(getString(R.string.app_name), 24);
-        if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
-        button(R.string.settings_title, () -> startActivity(new Intent(this, SettingsActivity.class)));
-        text(getString(R.string.idle_note), 14);
-        status = text(getString(R.string.working), 16);
-        button(R.string.refresh, () -> load("status-json"));
+        setContentView(root);
+        root.requestApplyInsets();
+
+        addAppBar(root);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(12), dp(20), dp(24));
+        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+
+        content.addView(Ui.heading(this, R.string.main_service));
+        LinearLayout.LayoutParams cardLayout = new LinearLayout.LayoutParams(-1, -2);
+        cardLayout.bottomMargin = dp(12);
+        content.addView(statusCard(), cardLayout);
+
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
-        content.addView(actions);
+        LinearLayout.LayoutParams actionsLayout = new LinearLayout.LayoutParams(-1, -2);
+        actionsLayout.bottomMargin = dp(4);
+        content.addView(actions, actionsLayout);
         actionButton(actions, R.string.enable, () -> load("enable"));
         actionButton(actions, R.string.disable, () -> confirmControl("disable", R.string.disable_warning));
         actionButton(actions, R.string.restart, () -> confirmControl("restart", R.string.restart_warning));
-        button(R.string.logs, () -> load("logs"));
-        button(R.string.panel, () -> {
-            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(panelUrl))); }
-            catch (ActivityNotFoundException e) { showError(e); }
-        });
-        button(R.string.send_files, this::pickFiles);
-        result = text(getSharedPreferences("companion", 0).getString("lastTransfer", ""), 14);
+
+        content.addView(Ui.heading(this, R.string.main_tools));
+        toolRow(content, R.string.panel, R.string.main_panel_summary, this::openPanel);
+        toolRow(content, R.string.logs, R.string.main_logs_summary, () -> load("logs"));
+        toolRow(content, R.string.send_files, R.string.main_send_summary, this::pickFiles);
+        toolRow(content, R.string.settings_title, R.string.main_settings_summary,
+                () -> startActivity(new Intent(this, SettingsActivity.class)));
+
+        result = Ui.text(this, "", 14, R.color.muted);
+        result.setTextIsSelectable(true);
+        result.setPadding(dp(4), dp(8), dp(4), 0);
+        content.addView(result, new LinearLayout.LayoutParams(-1, -2));
+        showLastTransfer();
         load("status-json");
     }
 
-    private TextView text(String value, int size) {
-        TextView view = new TextView(this);
-        view.setText(value);
-        view.setTextSize(size);
-        view.setTextIsSelectable(true);
-        view.setPadding(0, dp(8), 0, dp(8));
-        content.addView(view, new LinearLayout.LayoutParams(-1, -2));
-        return view;
+    private void addAppBar(LinearLayout root) {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(dp(20), dp(8), dp(20), dp(8));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.ic_module);
+        icon.setImageTintList(ColorStateList.valueOf(getColor(R.color.accent)));
+        icon.setPadding(dp(12), dp(12), dp(12), dp(12));
+        icon.setBackground(Ui.card(this, 24, false));
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        bar.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        TextView title = Ui.text(this, getString(R.string.app_name), 24, R.color.on_surface);
+        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        title.setPadding(dp(16), 0, 0, 0);
+        if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
+        bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        root.addView(bar, new LinearLayout.LayoutParams(-1, -2));
     }
-    private Button button(int label, Runnable action) {
-        Button view = new Button(this);
-        view.setText(label);
-        view.setAllCaps(false);
-        view.setMinHeight(dp(48));
-        view.setOnClickListener(v -> action.run());
-        content.addView(view, new LinearLayout.LayoutParams(-1, -2));
-        controls.add(view);
-        return view;
+
+    private LinearLayout statusCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(8), dp(16), dp(16));
+        card.setBackground(Ui.card(this, 16, true));
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        TextView label = Ui.text(this, getString(R.string.status), 16, R.color.on_surface);
+        label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        header.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
+        Button refresh = new Button(this, null, android.R.attr.borderlessButtonStyle);
+        refresh.setText(R.string.refresh);
+        refresh.setAllCaps(false);
+        refresh.setTextColor(getColor(R.color.accent));
+        refresh.setMinHeight(dp(40));
+        refresh.setMinWidth(0);
+        refresh.setMinimumWidth(0);
+        refresh.setPadding(dp(8), 0, dp(8), 0);
+        refresh.setOnClickListener(v -> load("status-json"));
+        header.addView(refresh, new LinearLayout.LayoutParams(-2, dp(48)));
+        card.addView(header);
+        status = Ui.text(this, getString(R.string.working), 16, R.color.on_surface);
+        status.setTextIsSelectable(true);
+        status.setPadding(0, dp(4), 0, dp(4));
+        card.addView(status, new LinearLayout.LayoutParams(-1, -2));
+        TextView idle = Ui.text(this, getString(R.string.idle_note), 14, R.color.muted);
+        idle.setPadding(0, dp(4), 0, 0);
+        card.addView(idle, new LinearLayout.LayoutParams(-1, -2));
+        controls.add(refresh);
+        return card;
     }
+
     private void actionButton(LinearLayout row, int label, Runnable action) {
-        Button view = new Button(this);
-        view.setText(label);
-        view.setAllCaps(false);
-        view.setMinHeight(dp(48));
-        view.setOnClickListener(v -> action.run());
-        row.addView(view, new LinearLayout.LayoutParams(0, -2, 1));
-        controls.add(view);
+        Button button = new Button(this);
+        button.setText(label);
+        button.setAllCaps(false);
+        button.setMinHeight(dp(48));
+        button.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(0, -2, 1);
+        layout.setMarginStart(dp(4));
+        layout.setMarginEnd(dp(4));
+        row.addView(button, layout);
+        controls.add(button);
     }
-    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+
+    private void toolRow(LinearLayout content, int title, int summary, Runnable action) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(16), dp(14), dp(16), dp(14));
+        row.setMinimumHeight(dp(72));
+        row.setBackground(Ui.card(this, 16, true));
+        row.setFocusable(true);
+        row.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        row.setOnClickListener(v -> action.run());
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        TextView name = Ui.text(this, getString(title), 16, R.color.on_surface);
+        name.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        labels.addView(name, new LinearLayout.LayoutParams(-1, -2));
+        TextView description = Ui.text(this, getString(summary), 14, R.color.muted);
+        description.setPadding(0, dp(4), 0, 0);
+        labels.addView(description, new LinearLayout.LayoutParams(-1, -2));
+        row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView chevron = Ui.text(this, "›", 24, R.color.muted);
+        chevron.setPadding(dp(16), 0, 0, 0);
+        chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        row.addView(chevron, new LinearLayout.LayoutParams(-2, -2));
+        LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(-1, -2);
+        layout.bottomMargin = dp(12);
+        content.addView(row, layout);
+        controls.add(row);
+    }
+
+    private void showLastTransfer() {
+        String last = getSharedPreferences("companion", 0).getString("lastTransfer", "");
+        result.setText(last);
+        result.setVisibility(last.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private int dp(int value) { return Ui.dp(this, value); }
     private void setBusy(boolean value) {
         busy = value;
-        for (Button control : controls) control.setEnabled(!value);
+        for (View control : controls) control.setEnabled(!value);
     }
     private void confirmControl(String action, int message) {
         new AlertDialog.Builder(this).setMessage(message).setNegativeButton(R.string.cancel, null)
@@ -116,7 +215,6 @@ public final class MainActivity extends Activity {
                     setBusy(false);
                     if (current != null) renderStatus(current);
                     if (action.equals("logs")) {
-                        status.setText(R.string.status);
                         TextView log = new TextView(this);
                         log.setText(answer);
                         log.setTextIsSelectable(true);
@@ -149,10 +247,14 @@ public final class MainActivity extends Activity {
             if (diagnostics != null) for (int i = 0; i < diagnostics.length(); i++)
                 description += "\n" + diagnostics.getJSONObject(i).optString("message");
             status.setText(description);
-            result.setText(getSharedPreferences("companion", 0).getString("lastTransfer", ""));
+            showLastTransfer();
         } catch (JSONException e) { status.setText(getString(R.string.error) + "\n" + e.getMessage()); }
     }
 
+    private void openPanel() {
+        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(panelUrl))); }
+        catch (ActivityNotFoundException e) { showError(e); }
+    }
     private void pickFiles() {
         Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
                 .addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
@@ -188,7 +290,7 @@ public final class MainActivity extends Activity {
         super.onStart();
         SharedPreferences preferences = getSharedPreferences("companion", 0);
         preferences.registerOnSharedPreferenceChangeListener(transferListener);
-        result.setText(preferences.getString("lastTransfer", ""));
+        showLastTransfer();
     }
     @Override protected void onStop() {
         getSharedPreferences("companion", 0).unregisterOnSharedPreferenceChangeListener(transferListener);

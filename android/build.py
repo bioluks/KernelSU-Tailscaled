@@ -51,7 +51,7 @@ def module_version() -> tuple[str, str]:
             properties[key] = value.strip()
     version = properties.get("version", "")
     code = properties.get("versionCode", "")
-    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?", version):
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:[_-][A-Za-z0-9._-]+)?", version):
         raise ValueError("module.prop must contain a filename-safe version")
     if not code.isascii() or not code.isdigit() or not 0 < int(code) <= 2100000000:
         raise ValueError("module.prop must contain a valid Android versionCode")

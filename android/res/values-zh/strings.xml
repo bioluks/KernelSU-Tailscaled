@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Tailscaled 助手</string>
-    <string name="status">模块状态</string><string name="refresh">刷新</string>
+    <string name="main_service">服务</string><string name="main_tools">工具</string>
+    <string name="main_panel_summary">模块状态、DNS 与网络设置</string>
+    <string name="main_logs_summary">查看守护进程与模块日志</string>
+    <string name="main_send_summary">使用 Taildrop 向设备发送文件</string>
+    <string name="main_settings_summary">语言与通知</string>
     <string name="enable">启用</string><string name="disable">禁用</string>
     <string name="restart">重启</string><string name="logs">日志</string>
     <string name="panel">打开完整面板</string><string name="send_files">选择要发送的文件</string>

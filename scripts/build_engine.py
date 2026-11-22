@@ -14,11 +14,11 @@ import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.104.2"
-REVISION = "c3430f0d2b8a1d646ad3ae867e3470bac07f1fe0"
+VERSION = "1.104.7"
+REVISION = "cbc74fe48ef1b1649f69a4d9a602319427e25102"
 SOURCE_URL = f"https://github.com/tailscale/tailscale/archive/refs/tags/v{VERSION}.tar.gz"
-SOURCE_SHA256 = "4c1c806e16507414a1459afcdc399f6a1323c21a1ac90f07bea0465fd8fd7e1d"
-TOOLCHAIN = "go1.27.3"
+SOURCE_SHA256 = "fa1c922b33d0f6db6b073800d7a62fa84081323d247b21547c63a98ed7ecac14"
+TOOLCHAIN = "go1.27.4"
 COMPATIBILITY = "android-compat-1"
 BUILD_TAGS = "ts_omit_clientupdate"
 TEST_PACKAGES = ("./net/netmon", "./net/dnscache", "./feature/androiddns", "./net/dns", "./cmd/tailscale")

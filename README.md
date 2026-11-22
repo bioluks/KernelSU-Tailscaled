@@ -58,7 +58,7 @@ than its documented userspace/proxy-based, terminal-led setup.
 
 Based on those projects, with upstream credits and licensing retained. Maintained
 here by bioluks; not an official Tailscale or KernelSU product. The bundled
-engine is built from Tailscale 1.104.2 with small, reproducible Android
+engine is built from Tailscale 1.104.7 with small, reproducible Android
 compatibility patches; it is not an unmodified official release binary.
 The legacy Magisk-Tailscaled v1 update channel is retired; only the
 `kernelsu-tailscaled` module line is maintained here. Official store review is
@@ -120,7 +120,8 @@ current module. The ID and persistent data directory are unchanged; do not
 uninstall or delete state first. Installing this ZIP switches subsequent module
 update checks to this repository. Upstream installations do not automatically
 discover this project's releases; the first switch is a manual ZIP install.
-Version **3.2.0** uses `versionCode=30020000`, advancing v3.1.0 and the local
+Module versions embed the bundled engine: `3.4.0_tailscale1.104.7` bundles
+Tailscale 1.104.7 with `versionCode=30040000`, advancing v3.3.2 and the local
 compatibility candidates. Existing login state and data formats are unchanged.
 
 ## WebUI Language And Headscale

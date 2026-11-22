@@ -1,3 +1,14 @@
+v3.4.0 (bioluks) - Tailscale 1.104.7 engine and companion landing redesign
+
+- Upgrade the bundled engine to Tailscale 1.104.7, built from pinned upstream
+  source with the same reviewed Android compatibility patches (go1.27.4).
+- Embed the engine in the module version: 3.4.0_tailscale1.104.7, keeping a
+  single monotonic versionCode (30040000).
+- Redesign the companion landing screen to match the settings and send
+  screens: status card, service actions, and tool rows.
+- Discover su by known absolute paths before falling back to PATH lookup.
+- Version code 30040000 advances v3.3.2 and both local v3.3.2 test builds.
+
 v3.3.2 (bioluks) - Live upgrade handoff and DNS safety
 
 - Limit the longer shutdown timeout to the previous runtime's upgrade handoff.

@@ -11,6 +11,32 @@ import java.util.concurrent.TimeUnit;
 
 final class RootCommand {
     static final String CONTROL = "/data/adb/modules/kernelsu-tailscaled/control.sh";
+
+    // Managers expose su at different paths; the app PATH is not guaranteed to
+    // contain any of them. Try the known absolute locations before "su".
+    private static final String[] SU_CANDIDATES = {
+            "/data/adb/ksu/bin/su", "/data/adb/ap/bin/su",
+            "/su/bin/su", "/system/xbin/su", "/system/bin/su", "su",
+    };
+
+    private static String suPath() {
+        for (String candidate : SU_CANDIDATES) {
+            if (candidate.contains("/")) {
+                if (!new java.io.File(candidate).canExecute()) continue;
+            }
+            return candidate;
+        }
+        return "su";
+    }
+
+    private static ProcessBuilder rootProcess(String... command) {
+        String[] su = new String[command.length + 2];
+        su[0] = suPath();
+        su[1] = "-c";
+        System.arraycopy(command, 0, su, 2, command.length);
+        return new ProcessBuilder(su);
+    }
+
     private static final Set<String> ACTIONS = new HashSet<>(Arrays.asList(
             "status-json", "enable", "disable", "restart", "logs", "taildrop-targets"));
 
@@ -39,7 +65,7 @@ final class RootCommand {
 
     static String run(String action) throws Exception {
         if (!ACTIONS.contains(action)) throw new IllegalArgumentException("Unsupported action");
-        Process process = new ProcessBuilder("su", "-c", "exec sh " + CONTROL + " " + action)
+        Process process = rootProcess("exec sh " + CONTROL + " " + action)
                 .redirectErrorStream(true).start();
         process.getOutputStream().close();
         Capture capture = new Capture(process.getInputStream());
@@ -57,8 +83,7 @@ final class RootCommand {
         String handshake = "IFS= read -r s < /proc/$$/stat || exit; s=${s##*) }; "
                 + "i=1; while [ $i -lt 20 ]; do s=${s#* }; i=$((i+1)); done; "
                 + "echo KST_PID=$$:${s%% *}; exec sh " + CONTROL + " taildrop-send";
-        return new ProcessBuilder("su", "-c", handshake)
-                .redirectErrorStream(true).start();
+        return rootProcess(handshake).redirectErrorStream(true).start();
     }
 
     static void cancel(String identity) {
@@ -90,7 +115,7 @@ final class RootCommand {
                 + "[ \"$dash\" = - ] && [ -z \"$extra\" ] || exit ;; *) exit ;; esac; "
                 + "kill -TERM $p";
         try {
-            Process killer = new ProcessBuilder("su", "-c", script).start();
+            Process killer = rootProcess(script).start();
             killer.waitFor(5, TimeUnit.SECONDS);
             killer.destroy();
         } catch (Exception ignored) { /* Stream closure also aborts an in-progress upload. */ }
