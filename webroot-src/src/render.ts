@@ -119,8 +119,8 @@ export function renderDashboard(root: HTMLElement, status: RuntimeStatus): void 
   updateControls.append(updateFacts);
   addButton(updateControls, 'engine-page', t("Tailscale engine update", "Tailscale 引擎更新"), t("Check and update the official Tailscale engine", "检查和更新官方 Tailscale 引擎"));
   if (status.runtime.stagedVersion) {
-    appendText(updateControls, "p", t("An update is staged; module files will switch after Android restarts.", "更新已暂存；模块文件将在 Android 重启后完成切换。"), "notice");
-    addButton(updateControls, "apply-staged", t("Apply staged update", "应用暂存更新"), t("Apply staged update", "应用暂存更新"));
+    appendText(updateControls, "p", t("KernelSU has staged module files. Check Current runtime above to see which version is selected; the staged files alone do not mean the runtime needs a reboot.", "KernelSU 已暂存模块文件。请查看上方的当前运行时以确认所选版本；暂存文件不代表运行时需要重启。"), "notice");
+    addButton(updateControls, "apply-staged", t("Apply staged runtime", "应用暂存运行时"), t("Apply staged runtime only", "仅应用暂存运行时"));
   }
   root.append(updateControls);
 

@@ -1,3 +1,4 @@
+import hashlib
 import os
 import shutil
 import signal
@@ -47,12 +48,14 @@ class StatusSummaryTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="kst-summary-", dir="/tmp")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.bundle = self.root / "bundle"
+        self.bundle = self.root / "state/releases/selected"
         self.state = self.root / "state"
         self.module = self.root / "module"
         self.staged = self.root / "staged"
         (self.bundle / "bin").mkdir(parents=True)
         (self.state / "run").mkdir(parents=True)
+        self.current = self.state / "current"
+        self.current.symlink_to(self.bundle, target_is_directory=True)
         self.module.mkdir()
         self.staged.mkdir()
         scripts = self.bundle / "tailscale/scripts"
@@ -85,11 +88,14 @@ class StatusSummaryTests(unittest.TestCase):
         self.addCleanup(self.stop_clients)
         self.reply = b"100.64.0.10\n"
         self.requests = []
+        self.on_ip_query = None
         fixture = self
 
         class Handler(socketserver.StreamRequestHandler):
             def handle(self):
                 fixture.requests.append(self.rfile.readline())
+                if fixture.on_ip_query is not None:
+                    fixture.on_ip_query()
                 self.wfile.write(fixture.reply)
 
         self.socket_path = self.state / "run/tailscaled.sock"
@@ -165,6 +171,115 @@ class StatusSummaryTests(unittest.TestCase):
             "[service degraded] Tailscale(v1.104.1) | 100.64.0.20 | UI ready"
             " | update pending reboot: 2.1.0")
 
+    def stage_update(self):
+        metadata = "version=2.1.0\nversionCode=20100000\n"
+        engine_version = (self.bundle / "engine-version").read_bytes()
+        manifest = f"{hashlib.sha256(engine_version).hexdigest()}  engine-version\n"
+        for directory in (self.bundle, self.staged):
+            (directory / "module.prop").write_text(metadata)
+            (directory / "bundle.sha256").write_text(manifest)
+            (directory / "engine-version").write_bytes(engine_version)
+        (self.module / "update").touch()
+
+    def test_selected_update_reports_manager_promotion_pending_without_mutating_stage(self):
+        self.stage_update()
+        staged_before = {path: path.read_bytes() for path in self.staged.iterdir()}
+        selected_metadata = (self.bundle / "module.prop").read_bytes()
+        stale = self.bundle.with_name("previous")
+        stale.mkdir()
+        (stale / "engine-version").write_text("v1.100.0\n")
+        self.env["BUNDLE_DIR"] = str(stale)
+
+        self.summarize()
+
+        self.assert_description(
+            "[service is running] Tailscale(v1.102.3) | 100.64.0.10 | UI ready"
+            " | runtime active; Manager promotion pending")
+        self.assertEqual(staged_before, {path: path.read_bytes() for path in self.staged.iterdir()})
+        self.assertEqual(selected_metadata, (self.bundle / "module.prop").read_bytes())
+        self.assertEqual(self.bundle, self.current.readlink())
+        self.assertTrue((self.module / "update").is_file())
+
+    def test_stale_caller_cannot_report_unselected_update_as_active(self):
+        self.stage_update()
+        rollback = self.bundle.with_name("rollback")
+        shutil.copytree(self.bundle, rollback)
+        (rollback / "module.prop").write_text("version=2.1.0\nversionCode=20000010\n")
+        self.current.unlink()
+        self.current.symlink_to(rollback, target_is_directory=True)
+
+        self.summarize()
+
+        self.assert_description(
+            "[service is running] Tailscale(v1.102.3) | 100.64.0.10 | UI ready"
+            " | update pending reboot: 2.1.0")
+
+    def test_equivalent_version_codes_match_despite_different_version_text(self):
+        self.stage_update()
+        (self.staged / "module.prop").write_text("version=Different label\nversionCode=020100000\n")
+
+        self.summarize()
+
+        self.assert_description(
+            "[service is running] Tailscale(v1.102.3) | 100.64.0.10 | UI ready"
+            " | runtime active; Manager promotion pending")
+
+    def test_matching_caller_bundle_is_not_active_without_current(self):
+        self.stage_update()
+        self.current.unlink()
+
+        self.summarize()
+
+        self.assert_description(
+            "[service is running] Tailscale(v1.102.3) | 100.64.0.10 | UI ready"
+            " | update pending reboot: 2.1.0")
+
+    def test_switch_during_ip_probe_does_not_publish_stale_summary(self):
+        self.stage_update()
+        successor = self.bundle.with_name("successor")
+        successor.mkdir()
+        next_current = self.state / ".current-next"
+        next_current.symlink_to(successor, target_is_directory=True)
+        self.on_ip_query = lambda: next_current.replace(self.current)
+
+        self.summarize()
+
+        self.assertEqual(successor, self.current.readlink())
+        self.assertEqual(self.original, self.module_prop.read_text())
+
+    def test_matching_version_text_is_not_release_identity(self):
+        for name, selected, staged in (
+            ("module.prop", "version=2.1.0\nversionCode=20000010\n", "version=2.1.0\nversionCode=20100000\n"),
+            ("module.prop", "version=2.1.0\n", "version=2.1.0\n"),
+            ("module.prop", "version=2.1.0\nversionCode=invalid\n", "version=2.1.0\nversionCode=invalid\n"),
+            ("bundle.sha256", "different manifest\n", None),
+            ("bundle.sha256", None, None),
+            ("bundle.sha256", "", ""),
+        ):
+            with self.subTest(name=name, selected=selected, staged=staged):
+                self.stage_update()
+                if selected is None:
+                    (self.bundle / name).unlink()
+                else:
+                    (self.bundle / name).write_text(selected)
+                if staged is not None:
+                    (self.staged / name).write_text(staged)
+                self.summarize()
+                self.assert_description(
+                    "[service is running] Tailscale(v1.102.3) | 100.64.0.10 | UI ready"
+                    " | update pending reboot: 2.1.0")
+
+    def test_matching_update_waits_for_tailnet_ip_before_cleanup(self):
+        self.stage_update()
+        self.reply = b""
+
+        self.summarize()
+
+        self.assert_description(
+            "[service is running] Tailscale(v1.102.3) | cleanup awaits tailnet IP | UI ready"
+            " | runtime active; Manager promotion pending")
+        self.assertEqual([b"ip -4\n"], self.requests)
+
     def test_nonrunning_lifecycle_never_invokes_cli_even_with_socket(self):
         for lifecycle, state in (("stopped", "service is stopped"),
                                  ("disabled", "service is stopped"),
@@ -220,7 +335,7 @@ class StatusSummaryTests(unittest.TestCase):
         self.env["KST_BUSYBOX"] = shutil.which("busybox")
         commands = self.root / "commands"
         commands.mkdir()
-        for name in ("awk", "chmod", "cut", "head", "mv", "rm", "sed", "tr"):
+        for name in ("awk", "chmod", "cut", "head", "mv", "readlink", "rm", "sed", "tr"):
             (commands / name).symlink_to(shutil.which(name))
         self.env["PATH"] = str(commands)
         self.assert_hanging_cli_is_bounded()

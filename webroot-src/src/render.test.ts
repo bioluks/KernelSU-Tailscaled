@@ -40,7 +40,8 @@ describe("schema 2 dashboard", () => {
     expect(root.textContent).toContain("DNS server is unreachable");
     expect(root.textContent).toContain("2.0.0-beta.2");
     expect(root.textContent).toContain("2.0.0-alpha.1");
-    expect(root.querySelector("[data-action=apply-staged]")).not.toBeNull();
+    expect(root.textContent).toContain("the staged files alone do not mean the runtime needs a reboot");
+    expect(root.querySelector("[data-action=apply-staged]")?.getAttribute("aria-label")).toBe("Apply staged runtime only");
     expect(root.querySelector("[data-action=diagnostics]")).not.toBeNull();
   });
 

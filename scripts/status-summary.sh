@@ -34,7 +34,27 @@ sanitize() {
   printf '%s' "$1" | tr '\r\n|' '   ' | cut -c 1-48
 }
 
-BUNDLE_DIR=${BUNDLE_DIR:-$TS_DIR/current}
+version_code() {
+  awk '/^versionCode=/ {
+    sub(/^versionCode=/, "")
+    if ($0 ~ /^[0-9]+$/ && $0+0 > 0 && $0+0 <= 2147483647) printf "%.0f\n", $0
+    exit
+  }' "$1/module.prop" 2>/dev/null
+}
+
+staged_matches_current() {
+  [ -n "$selected" ] || return 1
+  [ -f "$selected/bundle.sha256" ] && [ -s "$selected/bundle.sha256" ] &&
+    [ -f "$KST_STAGED_DIR/bundle.sha256" ] && [ -s "$KST_STAGED_DIR/bundle.sha256" ] || return 1
+  code=$(version_code "$selected")
+  [ -n "$code" ] && [ "$code" = "$(version_code "$KST_STAGED_DIR")" ] &&
+    cmp -s "$selected/bundle.sha256" "$KST_STAGED_DIR/bundle.sha256"
+}
+
+# The caller may still be an old supervisor after current has been switched.
+. "${0%/*}/bundle-lib.sh"
+selected=$(kst_current 2>/dev/null) || selected=
+BUNDLE_DIR=${selected:-${BUNDLE_DIR:-$TS_DIR/current}}
 ENGINE_DIR=$BUNDLE_DIR
 if [ -f "$BUNDLE_DIR/tailscale/scripts/engine-lib.sh" ]; then
   . "$BUNDLE_DIR/tailscale/scripts/engine-lib.sh"
@@ -55,22 +75,31 @@ cli="$ENGINE_DIR/bin/tailscale"
 if [ -S "$TS_DIR/run/tailscaled.sock" ] && [ -x "$cli" ]; then
   case "$lifecycle" in
     running|degraded)
-      candidate=$(
+      if candidate=$(
         if [ -x "$KST_BUSYBOX" ]; then
           "$KST_BUSYBOX" timeout -s KILL "$KST_CLI_TIMEOUT" "$cli" --socket="$TS_DIR/run/tailscaled.sock" ip -4
         else
           timeout -s KILL "$KST_CLI_TIMEOUT" "$cli" --socket="$TS_DIR/run/tailscaled.sock" ip -4
-        fi 2>/dev/null | head -n 1
-      )
-      case "$candidate" in [0-9]*.[0-9]*.[0-9]*.[0-9]*) ip=$candidate ;; esac ;;
+        fi 2>/dev/null
+      ); then
+        candidate=$(printf '%s\n' "$candidate" | head -n 1)
+        case "$candidate" in [0-9]*.[0-9]*.[0-9]*.[0-9]*) ip=$candidate ;; esac
+      fi ;;
   esac
 fi
 ui='UI unavailable'
 [ -S "$TS_DIR/run/tailscaled.sock" ] && ui='UI ready'
 pending=''
 if [ -f "$KST_STAGED_DIR/module.prop" ]; then
-  staged=$(sed -n 's/^version=//p' "$KST_STAGED_DIR/module.prop" 2>/dev/null | head -n 1)
-  [ -n "$staged" ] && pending=" | update pending reboot: $staged"
+  if staged_matches_current; then
+    pending=' | runtime active; Manager promotion pending'
+    [ "$ip" != 'not ready' ] || ip='cleanup awaits tailnet IP'
+  else
+    staged=$(sed -n 's/^version=//p' "$KST_STAGED_DIR/module.prop" 2>/dev/null | head -n 1)
+    [ -n "$staged" ] && pending=" | update pending reboot: $(sanitize "$staged")"
+  fi
 fi
 summary="[$state] Tailscale($(sanitize "$version")) | $(sanitize "$ip") | $ui$pending"
+# Don't publish details for a generation that changed during the IP probe.
+[ "$selected" = "$(kst_current 2>/dev/null)" ] || exit 0
 summary_file "$MODDIR/module.prop" "$summary"
