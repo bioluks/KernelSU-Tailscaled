@@ -77,3 +77,22 @@ of the retained record. v3.3.1 made the supervisor's idle sleep interruptible,
 increased stop timeouts, and added bounded exit verification and a stop retry.
 CI passed. A successful Manager upgrade with the exact v3.3.1 ZIP and separate
 maintainer acceptance of that artifact were not recorded.
+
+## Local no-reboot test candidates (2026-11-22)
+
+The ARM64 `3.3.2-test.1` ZIP (SHA-256
+`0bf06fccf103495b8c3601ae1a87449d42c5995d9b5ea15cbb65854eae707587`)
+flashed successfully through KernelSU-Next Manager on the OnePlus 9 Pro
+(v3.4.2 Manager, from module v3.3.0) and Poco F1 (v1.1.1 Manager, from module
+v3.1.1-dev.3). Both phones also upgraded from `test.1` to the ARM64 `test.2` ZIP
+with revised WebUI wording (SHA-256
+`604d1d9bcfecab637421141720e42d04a5b424467984c37114330c2e97297831`).
+Each upgrade preserved the Android boot ID, saved state, configuration, and
+projected preferences. The selected runtime and installed WebUI matched the
+candidate ZIP; the supervisor and daemon ran after installation.
+
+Manager still offered Reboot and staging remained pending. Neither device had a
+tailnet address before or after the test: the Poco needed login; the OnePlus's
+Headscale control endpoint refused connections. Peer connectivity, deferred
+staging cleanup, and post-reboot activation were not verified. These local test
+builds are not approved for publication.
