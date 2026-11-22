@@ -136,3 +136,36 @@ verified:
 Neither phone had a tailnet IP (Poco needed login; OnePlus Headscale endpoint
 refused connections), so peer connectivity was not verified. The ARMv7 ZIP was
 verified offline only. All other release acceptance criteria were met.
+
+## v3.4.0_tailscale1.104.7 stable verification
+
+The engine is rebuilt from pinned upstream Tailscale v1.104.7 source
+(`cbc74fe48ef1b1649f69a4d9a602319427e25102`, archive SHA-256
+`fa1c922b33d0f6db6b073800d7a62fa84081323d247b21547c63a98ed7ecac14`) with the
+same two reviewed patches applied unchanged, using go1.27.4. Both
+architectures built twice in the pinned container are byte-identical, and the
+engine regression packages pass. `files/manifest.sha256` verifies.
+
+| ZIP | SHA-256 |
+| --- | --- |
+| `KernelSU-Tailscaled-v3.4.0_tailscale1.104.7.zip` | `fbd3889591a41314342230b1ac5b5774167e6c5e1d59666aad54bf9ca96442cc` |
+| `KernelSU-Tailscaled-arm-v3.4.0_tailscale1.104.7.zip` | `c6136af81d272647eec598b54b06f1417e7562b1602512be263f5278295639dc` |
+| `KernelSU-Tailscaled-arm64-v3.4.0_tailscale1.104.7.zip` | `ff28bc847b1a1e6b7599504c00150620f4e04ff5be20f2d455ab40aadc1a66cd` |
+
+KernelSU-Next Manager flashed the exact ARM64 ZIP on the OnePlus 9 Pro and the
+exact universal ZIP on the Poco F1, both upgrading from v3.3.2. Both Managers
+reported Flash success; the running bundles, installed WebUI, and companion
+status all report `3.4.0_tailscale1.104.7` with Tailscale 1.104.7.
+
+With explicit reboot authorization both phones rebooted and KernelSU promoted
+the module (`versionCode=30040000`), cleared staging, and auto-started the
+supervisor, daemon, and WebUI. `tailscaled.state` and `config/module.conf`
+hashes are unchanged from the pre-flash snapshot on both phones (only the boot
+IDs changed: OnePlus `db4b0e84-2b2c-4fcf-a675-80c2d130a439`, Poco
+`7519d51e-cc21-45d1-84ac-e8f106eb3f47`); projected preferences are unchanged.
+
+Tailnet peer connectivity was not exercised: the maintainer's Headscale server
+was down during the window, so the OnePlus could not reach its control
+endpoint, and the Poco still needs login. The redesigned companion landing,
+settings, and send screens were verified on both phones by UI dump and
+screenshot. The ARMv7 ZIP was verified offline only.
