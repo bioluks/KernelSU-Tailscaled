@@ -1,5 +1,5 @@
 [![bioluks - KernelSU-Tailscaled](https://img.shields.io/static/v1?label=bioluks&message=KernelSU-Tailscaled&color=blue&logo=github)](https://github.com/bioluks/KernelSU-Tailscaled)
-[![Build, Verify, and Release](https://github.com/bioluks/KernelSU-Tailscaled/actions/workflows/release.yml/badge.svg?branch=all-features-merged)](https://github.com/bioluks/KernelSU-Tailscaled/actions/workflows/release.yml)
+[![Build, Verify, and Release](https://github.com/bioluks/KernelSU-Tailscaled/actions/workflows/release.yml/badge.svg?branch=master)](https://github.com/bioluks/KernelSU-Tailscaled/actions/workflows/release.yml)
 [![Total downloads](https://img.shields.io/github/downloads/bioluks/KernelSU-Tailscaled/total)](https://github.com/bioluks/KernelSU-Tailscaled/releases)
 [![Latest stable release](https://img.shields.io/github/v/release/bioluks/KernelSU-Tailscaled?color=blue)](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest)
 [![Open issues](https://img.shields.io/github/issues/bioluks/KernelSU-Tailscaled)](https://github.com/bioluks/KernelSU-Tailscaled/issues)
@@ -374,7 +374,7 @@ The engine recipe verifies upstream source and patches and records output
 provenance. CI runs Linux engine regressions and compares all four rebuilt
 engines with committed payloads. See [the engine build contract](engine/README.md).
 
-The default `all-features-merged` branch, `main` and feature branches build
+The default `master` branch and feature branches build
 artifacts without publishing. `v3.*-*` tags publish as prereleases; stable tags
 additionally require `STABLE_RELEASE_APPROVED=true` and
 the `source-release` environment. Enable repository release immutability before
