@@ -24,10 +24,12 @@ kst_activate() (
     new_code=$(kst_prop "$new" versionCode)
     [ "$new_code" -gt "$old_code" ] || { kst_error version-not-increasing; exit 1; }
     kst_engine_order "$old" "$new" || { kst_error engine-downgrade-or-invalid-version; exit 1; }
-    export KST_STOP_TIMEOUT="${KST_STOP_TIMEOUT:-6}"
-    if ! kst_runtime "$old" stop; then
+    # Only the installed generation's stop needs the longer fallback. Start,
+    # rollback, and engine recovery keep their normal shutdown policy.
+    handoff_timeout=${KST_STOP_TIMEOUT:-6}
+    if ! KST_STOP_TIMEOUT="$handoff_timeout" kst_runtime "$old" stop; then
       sleep 0.5
-      kst_runtime "$old" stop || { kst_error current-stop-failed; exit 1; }
+      KST_STOP_TIMEOUT="$handoff_timeout" kst_runtime "$old" stop || { kst_error current-stop-failed; exit 1; }
     fi
     kst_pointer previous "$old" || exit 1
   fi

@@ -5,8 +5,7 @@ BUNDLE_DIR=$(cd "$1" && pwd -P) || exit 1
 MODDIR=${KST_ACTIVE_DIR:-/data/adb/modules/kernelsu-tailscaled}
 TS_DIR=${TS_DIR:-/data/adb/kernelsu-tailscaled}
 KST_LEGACY_DIR=${KST_LEGACY_DIR:-/data/adb/tailscale}
-KST_STOP_TIMEOUT="${KST_STOP_TIMEOUT:-6}"
-export BUNDLE_DIR MODDIR TS_DIR KST_LEGACY_DIR KST_STOP_TIMEOUT
+export BUNDLE_DIR MODDIR TS_DIR KST_LEGACY_DIR
 
 . "$BUNDLE_DIR/scripts/bundle-lib.sh"
 kst_verify_bundle "$BUNDLE_DIR" || exit 1

@@ -26,6 +26,7 @@ fixture_command() {
       touch "$RUN_DIR/fake-running"
       ;;
     stop|disable)
+      printf '%s:%s\n' "$(sed -n 's/^versionCode=//p' "$BUNDLE_DIR/module.prop")" "${KST_STOP_TIMEOUT:-3}" >> "$TRACE.stop-timeouts"
       printf '0\n' > "$RUN_DIR/wanted"
       rm -f "$RUN_DIR/fake-running"
       ;;
@@ -266,6 +267,31 @@ touch "$KST_ACTIVE_DIR/update"
         self.assertEqual(before, self.presentation(env))
         self.assertTrue((state / "run/fake-running").is_file())
         self.assertTrue((state / "run/activation-failure").is_file())
+
+    def test_only_old_generation_handoff_extends_stop_timeout(self):
+        metadata = self.source / "module.prop"
+        old = int(re.search(r"(?m)^versionCode=(\d+)$", metadata.read_text())[1])
+        metadata.write_text(re.sub(r"(?m)^versionCode=\d+$", f"versionCode={old + 1}", metadata.read_text()))
+        service = self.source / "tailscale/scripts/tailscale-service"
+        service.write_text(SERVICE.replace('[ ! -f "$BUNDLE_DIR/fail-start" ] || return 42', 'return 42'))
+        update = self.build("timeout-scope")
+        for override in (None, "2"):
+            with self.subTest(override=override):
+                env = self.device(f"timeout-{override}")
+                env.pop("KST_STOP_TIMEOUT", None)
+                if override is not None:
+                    env["KST_STOP_TIMEOUT"] = override
+                self.install(env)
+                journal = Path(env["TS_DIR"]) / "engine-transaction"
+                journal.mkdir()
+                (journal / "previous").write_text("bundled\n")
+                (journal / "wanted").write_text("1\n")
+                self.install(env, update, ok=False)
+                self.assertEqual(
+                    [f"{old}:{override or '3'}", f"{old}:{override or '6'}", f"{old + 1}:{override or '3'}"],
+                    Path(env["TRACE"] + ".stop-timeouts").read_text().splitlines(),
+                )
+                self.assertTrue((Path(env["TS_DIR"]) / "run/fake-running").is_file())
 
     @unittest.skipUnless(shutil.which("mksh") and shutil.which("busybox"), "Requires mksh and BusyBox")
     def test_complete_install_under_mksh_and_busybox_preserves_control_lock(self):
