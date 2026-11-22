@@ -106,10 +106,14 @@ networking remain prerequisites; arbitrary kernels/ROMs are not guaranteed.
    follow the migration below before signing in.
 
 Hot installation switches scripts and binaries together and publishes the
-complete manager view from that same ZIP. Reopen an already-open Details page
-to load its new assets. Normal KernelSU module promotion remains compatible with
-the selected runtime. **Apply staged runtime** is also available for a staged
-candidate; routine ZIP installation does not need that extra step.
+complete Manager view from that same ZIP. Reopen an already-open WebUI to load
+the new assets. The Tailscale service briefly restarts; Android does not.
+KernelSU can still offer Reboot for its separate staged update. Check **Updates
+→ Current runtime** and service health to distinguish a successful runtime switch
+from a failed install. Automatic Manager staging cleanup waits for a tailnet
+IPv4 address and verifies that the installed hooks and WebUI match the update.
+**Apply staged runtime** switches only the runtime; routine ZIP installation
+does not need that extra step.
 
 Existing `kernelsu-tailscaled` users can install this project's ZIP over their
 current module. The ID and persistent data directory are unchanged; do not
