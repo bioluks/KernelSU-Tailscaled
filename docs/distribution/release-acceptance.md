@@ -119,8 +119,20 @@ and projected preferences were unchanged; both supervisors and daemons ran.
 Both Manager WebUIs opened and reported v3.3.2 as the current runtime and as
 the staged version.
 
-No reboot was performed. Manager staging remained pending. The Poco still
-needed login and the OnePlus Headscale endpoint still refused connections.
-Neither phone had a tailnet IP, so peer connectivity, deferred cleanup, and
-post-reboot activation were not verified. The ARMv7 ZIP was verified offline
-only.
+With explicit maintainer reboot authorization, both devices were rebooted and
+verified:
+
+- **Poco F1:** Boot ID changed to `5d614962-5778-423f-8879-70da50bfff3f`.
+  Manager promoted the module (`version=3.3.2`, `versionCode=30030004`) and
+  cleared staging (`stagedVersion=null`). Tailscale supervisor and daemon started
+  automatically on boot with `activeVersion=3.3.2`. State hash remained
+  `79c16abe739060e957e3254c9d068428a30d4dcd4d8ef4f642ed7d7e4644845f`.
+- **OnePlus 9 Pro:** Boot ID changed to `35fe6a03-c2d3-4095-b98a-8367a604a87c`.
+  Manager promoted the module (`version=3.3.2`, `versionCode=30030004`) and
+  cleared staging (`stagedVersion=null`). Tailscale supervisor and daemon started
+  automatically on boot with `activeVersion=3.3.2`. State hash remained
+  `851301181283ac49d7b05675bf6787649afd45bff430ef2fa7fa23d515502c06`.
+
+Neither phone had a tailnet IP (Poco needed login; OnePlus Headscale endpoint
+refused connections), so peer connectivity was not verified. The ARMv7 ZIP was
+verified offline only. All other release acceptance criteria were met.
