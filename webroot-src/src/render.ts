@@ -64,6 +64,8 @@ function addButton(parent: HTMLElement, action: string, label: string, title: st
     "apply-staged": "package-check",
     "enable-dns": "globe",
     "disable-dns": "globe",
+    "enable-system-dns": "globe",
+    "disable-system-dns": "globe",
   };
   const button = document.createElement("button");
   button.type = "button";
@@ -161,6 +163,24 @@ export function renderDashboard(root: HTMLElement, status: RuntimeStatus): void 
       : t("Enable Tailscale DNS", "启用 Tailscale DNS");
     const dnsButton = addButton(network, dnsAction, dnsLabel, dnsLabel);
     dnsButton.disabled = !status.enabled || status.components.daemon !== "running" || migrationRequired || awaitingEnable;
+  }
+  if (status.systemDns !== null) {
+    const systemAction = status.systemDns.enabled ? "disable-system-dns" : "enable-system-dns";
+    const systemLabel = status.systemDns.enabled
+      ? t("Stop system-wide DNS", "停用系统级 DNS")
+      : t("Use Tailscale DNS for all apps", "让所有应用使用 Tailscale DNS");
+    const systemButton = addButton(network, systemAction, systemLabel, systemLabel);
+    systemButton.disabled = !status.enabled || status.components.daemon !== "running" || migrationRequired || awaitingEnable;
+    appendText(network, "p", t(
+      "Redirects Android port-53 queries to the Tailscale resolver. Turn Android Private DNS off; apps with built-in DoH bypass this.",
+      "将 Android 的 53 端口查询重定向到 Tailscale 解析器。请关闭 Android 私人 DNS；内置 DoH 的应用会绕过此设置。",
+    ), "notice");
+    if (status.systemDns.enabled && !status.systemDns.applied) {
+      appendText(network, "p", t(
+        "System-wide DNS is enabled but not applied while the daemon is stopped.",
+        "系统级 DNS 已启用，但守护进程停止时不会生效。",
+      ), "notice");
+    }
   }
   root.append(network);
   const health = document.createElement("section");

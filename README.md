@@ -36,6 +36,7 @@ base, the changes extend everyday use, not just installation or bug fixes:
 | **Integrated Headscale sign-in** | A custom control-server URL and explicit registration flow in the WebUI, with confirmation before switching servers. Uses upstream's existing Headscale support and retains other network preferences; no manual login command is needed for this flow. |
 | **Lower idle supervisor overhead** | Fewer external process/property lookups, time-bounded status probes, less frequent Manager metadata work and no unchanged-description rewrites. Process recovery remains active even before login. The measured reduction is in supervisor CPU, not a claimed battery-life improvement. |
 | **Live Tailscale DNS on/off switch** | Toggle Tailscale MagicDNS / CorpDNS acceptance directly in the WebUI Network section with one click, or via module commands (`enable-dns`, `disable-dns`, `toggle-dns`). Takes effect live without restarting the daemon or phone. |
+| **Opt-in system-wide DNS** | Redirects Android's port-53 queries to the Tailscale internal resolver so every app uses MagicDNS and the tailnet nameservers from the coordination server, without occupying the VPN slot. Off by default; owned netfilter chains are removed when the daemon stops or the module is removed. |
 | **Companion release integration** | A separately installable, release-signed APK alongside universal, ARM64 and ARM module ZIPs. Release gates check APK signing, reproducible unsigned APK bytes and the exact four-asset release set. |
 
 Usage and limits: [Taildrop](#taildrop-on-android),
@@ -120,9 +121,9 @@ current module. The ID and persistent data directory are unchanged; do not
 uninstall or delete state first. Installing this ZIP switches subsequent module
 update checks to this repository. Upstream installations do not automatically
 discover this project's releases; the first switch is a manual ZIP install.
-Module versions embed the bundled engine: `3.4.0_tailscale1.104.7` bundles
-Tailscale 1.104.7 with `versionCode=30040000`, advancing v3.3.2 and the local
-compatibility candidates. Existing login state and data formats are unchanged.
+Module versions embed the bundled engine: `3.5.0_tailscale1.104.7` bundles
+Tailscale 1.104.7 with `versionCode=30050000`, advancing v3.4.0_tailscale1.104.7.
+Existing login state and data formats are unchanged.
 
 ## WebUI Language And Headscale
 
@@ -301,7 +302,20 @@ TAILDROP_DIR=/sdcard/Download
 Native mode is explicit. Userspace mode requires the bundled helper and is never
 silently selected after an interface failure. An optional loopback HTTP/SOCKS5
 `CONTROL_PROXY` affects control-plane requests, not direct WireGuard traffic.
-No script edits another module's firewall, proxy, DNS, or ZeroTier configuration.
+No script edits another module's firewall, proxy, DNS, or ZeroTier
+configuration; the opt-in system-DNS redirect owns only this module's chains.
+
+System-wide DNS is opt-in and owned by this module. `enable-system-dns`
+redirects other processes' TCP/UDP port 53 to the Tailscale internal resolver
+(`100.100.100.100`), which answers MagicDNS and forwards other names using the
+tailnet nameservers delivered by the coordination server. `tailscaled`'s own
+upstream queries (uid 0), private networks, loopback and the resolver itself
+are excluded. IPv6 uses NAT when the kernel supports it and otherwise rejects
+port 53 so queries fall back to IPv4. Turn Android Private DNS off; apps with
+built-in DoH bypass the redirect. Rules are removed when the daemon stops, the
+feature is disabled, or the module is uninstalled, and nothing is touched while
+the feature is off. Other DNS modules are not modified and should not be
+combined with this option.
 
 Fresh identities initialize a hostname from the Android device name, falling
 back to product/model, and begin with DNS/subnet acceptance and exit routing off.

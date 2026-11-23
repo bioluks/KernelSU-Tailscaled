@@ -37,6 +37,8 @@ async function mockBridge(page: Page, status: unknown) {
         };
         if (action === "enable-dns") fixture.status = { ...running, prefs: { ...running.prefs, CorpDNS: true } };
         if (action === "disable-dns") fixture.status = { ...running, prefs: { ...running.prefs, CorpDNS: false } };
+        if (action === "enable-system-dns") fixture.status = { ...running, systemDns: { enabled: true, applied: true } };
+        if (action === "disable-system-dns") fixture.status = { ...running, systemDns: { enabled: false, applied: false } };
         if (action === "apply-staged" || action === "enable") fixture.status = running;
         const error = fixture.failures[action];
         setTimeout(() => {
@@ -153,5 +155,15 @@ test("toggles Tailscale DNS setting interactively", async ({ page }) => {
   const disableButton = page.locator('[data-action="disable-dns"]');
   await expect(disableButton).toHaveText("Disable Tailscale DNS");
   await expect(page.locator(".notice")).toContainText("Tailscale DNS enabled");
+  await checkLayout(page);
+});
+
+test("toggles opt-in system-wide DNS", async ({ page }) => {
+  await mockBridge(page, running);
+  const button = page.locator('[data-action="enable-system-dns"]');
+  await expect(button).toHaveText("Use Tailscale DNS for all apps");
+  await button.click();
+  await expect(page.locator('[data-action="disable-system-dns"]')).toHaveText("Stop system-wide DNS");
+  await expect(page.locator(".notice")).toContainText("System-wide DNS enabled");
   await checkLayout(page);
 });

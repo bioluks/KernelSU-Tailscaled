@@ -254,4 +254,19 @@ describe("dashboard actions", () => {
     expect(button("disable-dns").textContent).toContain("Disable Tailscale DNS");
     expect(toast).toHaveBeenCalledWith("Tailscale DNS enabled");
   });
+
+  it("toggles opt-in system-wide DNS and refreshes status", async () => {
+    await boot(running);
+    expect(button("enable-system-dns").textContent).toContain("Use Tailscale DNS for all apps");
+    const enabled = { ...running, systemDns: { enabled: true, applied: true } };
+    vi.mocked(exec).mockClear();
+    vi.mocked(exec)
+      .mockResolvedValueOnce(result(""))
+      .mockResolvedValueOnce(result(JSON.stringify(enabled)));
+    button("enable-system-dns").click();
+    await settled();
+    expect(vi.mocked(exec).mock.calls.map(([command]) => command.split(" ").at(-1))).toEqual(["enable-system-dns", "status-json"]);
+    expect(button("disable-system-dns").textContent).toContain("Stop system-wide DNS");
+    expect(toast).toHaveBeenCalledWith("System-wide DNS enabled");
+  });
 });

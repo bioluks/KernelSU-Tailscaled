@@ -187,6 +187,17 @@ async function handleAction(action: string): Promise<void> {
           toast(msg);
         }
         break;
+      case "enable-system-dns":
+      case "disable-system-dns": {
+        await execute(action);
+        await refreshStatus();
+        const message = action === "enable-system-dns"
+          ? t("System-wide DNS enabled", "系统级 DNS 已启用")
+          : t("System-wide DNS disabled", "系统级 DNS 已停用");
+        announce(message);
+        toast(message);
+        break;
+      }
     }
   } catch (error) {
     if (!currentStatus) {

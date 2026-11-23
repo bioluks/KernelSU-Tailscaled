@@ -21,7 +21,9 @@ export type ModuleAction =
   | "login-server"
   | "taildrop-save-dir"
   | "enable-dns"
-  | "disable-dns";
+  | "disable-dns"
+  | "enable-system-dns"
+  | "disable-system-dns";
 export interface CommandResult {
   stdout: string;
   stderr: string;
@@ -44,6 +46,8 @@ const ACTIONS: ReadonlySet<string> = new Set([
   "taildrop-save-dir",
   "enable-dns",
   "disable-dns",
+  "enable-system-dns",
+  "disable-system-dns",
   "engine-status", "engine-check", "engine-prepare", "engine-apply",
 ]);
 

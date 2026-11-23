@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @unittest.skipUnless(os.name == 'posix' and Path('/proc').exists(), 'Linux behavior tests; run in WSL')
-class RuntimeBehaviorTests(unittest.TestCase):
+class RuntimeHarness(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='kst-runtime-')
         self.root = Path(self.temp.name)
@@ -94,6 +94,8 @@ class RuntimeBehaviorTests(unittest.TestCase):
     def common(self, body):
         return subprocess.run(['/bin/sh', '-c', '. "$BUNDLE_DIR/tailscale/scripts/common.sh"; ' + body], env=self.env, capture_output=True, text=True, timeout=10)
 
+
+class RuntimeBehaviorTests(RuntimeHarness):
     def test_unsafe_taildrop_config_does_not_stop_network_runtime(self):
         self.set_config(self.config + 'TAILDROP_DIR=/data/adb\n')
         self.start()

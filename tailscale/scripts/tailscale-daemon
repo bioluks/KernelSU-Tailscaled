@@ -2,6 +2,7 @@
 # shellcheck disable=SC3043
 SCRIPT_DIR=${0%/*}
 . "$SCRIPT_DIR/common.sh"
+. "$SCRIPT_DIR/system-dns.sh"
 FRESH_MARKER="$TS_DIR/fresh-defaults.pending"
 HOSTNAME_MARKER="$TS_DIR/hostname.initialized"
 FRESH_APPLIED="$RUN_DIR/fresh-defaults.applied"
@@ -51,16 +52,28 @@ initialize_hostname() {
 daemon_health() { daemon_running && socket_ready; }
 
 daemon_stop() {
-  stop_owned "$DAEMON_PID" "$TAILSCALED_BIN" "--socket=$SOCKET_FILE" || return 1
-  stop_logger tailscaled || return 1
-  rm -f "$SOCKET_FILE"
+  local status=0
+  stop_owned "$DAEMON_PID" "$TAILSCALED_BIN" "--socket=$SOCKET_FILE" || status=1
+  if [ "$status" = 1 ]; then
+    # A retained process record owns the socket; keep it on inconclusive stops.
+    system_dns_remove_quiet
+    return 1
+  fi
+  stop_logger tailscaled || status=1
+  if [ "$status" = 0 ]; then rm -f "$SOCKET_FILE"; fi
+  system_dns_remove_quiet
+  return "$status"
 }
 
 daemon_start() {
   load_config || { log ERROR "$CONFIG_ERROR"; return 1; }
   if [ "$ENGINE_DIR" != "$BUNDLE_DIR" ]; then engine_verify "$ENGINE_DIR" || return 1; fi
   module_disabled && return 1
-  if daemon_running; then daemon_health && initialize_hostname; return $?; fi
+  if daemon_running; then
+    daemon_health && initialize_hostname || return 1
+    system_dns_sync || log WARN 'System-wide DNS is not applied'
+    return 0
+  fi
   stop_owned "$DAEMON_PID" "$TAILSCALED_BIN" "--socket=$SOCKET_FILE" || return 1
   [ -x "$TAILSCALED_BIN" ] && [ -x "$TAILSCALE_BIN" ] || return 1
   ensure_dirs || return 1
@@ -84,7 +97,11 @@ daemon_start() {
   deadline=$(($(date +%s) + KST_START_TIMEOUT))
   while [ "$(date +%s)" -lt "$deadline" ]; do
     if daemon_health; then
-      if initialize_hostname; then [ ! -f "$STATE_FILE" ] || chmod 0600 "$STATE_FILE"; return 0; fi
+      if initialize_hostname; then
+        [ ! -f "$STATE_FILE" ] || chmod 0600 "$STATE_FILE"
+        system_dns_sync || log WARN 'System-wide DNS is not applied'
+        return 0
+      fi
       break
     fi
     daemon_running || break

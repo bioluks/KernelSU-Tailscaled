@@ -26,6 +26,7 @@ export interface RuntimeStatus {
   ipv4: string | null;
   acceptRoutes: boolean | null;
   acceptDNS: boolean | null;
+  systemDns: { enabled: boolean; applied: boolean } | null;
   exitNode: string | null;
   controlURL: string | null;
   moduleVersion: string;
@@ -144,6 +145,15 @@ export function parseRuntimeStatus(input: string): RuntimeStatus {
       if (raw.prefs.ControlURL !== undefined) controlURL = nullableString(raw.prefs.ControlURL);
     }
 
+    let systemDns: { enabled: boolean; applied: boolean } | null = null;
+    if (raw.systemDns !== undefined) {
+      if (!isObject(raw.systemDns) || typeof raw.systemDns.enabled !== "boolean"
+          || typeof raw.systemDns.applied !== "boolean") {
+        throw new Error("Invalid runtime status");
+      }
+      systemDns = { enabled: raw.systemDns.enabled, applied: raw.systemDns.applied };
+    }
+
     const webListen = raw.webListen ?? "127.0.0.1:8088";
     if (typeof webListen !== "string" || !/^127\.0\.0\.1:[1-9][0-9]{0,4}$/.test(webListen) || Number(webListen.split(":")[1]) > 65535) {
       throw new Error("Invalid runtime status");
@@ -159,6 +169,7 @@ export function parseRuntimeStatus(input: string): RuntimeStatus {
       ipv4,
       acceptRoutes,
       acceptDNS,
+      systemDns,
       exitNode,
       controlURL,
       moduleVersion: requireString(raw, "moduleVersion"),

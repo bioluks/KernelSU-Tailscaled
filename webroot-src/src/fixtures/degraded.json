@@ -16,6 +16,7 @@
     {"code":"exit-node-configured","severity":"warning","message":"Effective preferences select an exit node"},
     {"code":"web-unavailable","severity":"warning","message":"Official loopback web panel is not ready"}
   ],
+  "systemDns": {"enabled": true, "applied": false},
   "tailscale": {"BackendState":"Running","Self":{"HostName":"android","DNSName":"phone-lab.tail123.ts.net.","TailscaleIPs":["100.64.10.20"]},"Health":["DNS server is unreachable"]},
   "prefs": {"RouteAll":true,"CorpDNS":true,"ExitNodeID":"exit-node-id"}
 }

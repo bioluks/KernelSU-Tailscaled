@@ -2,6 +2,7 @@
 # shellcheck disable=SC3043
 SCRIPT_DIR=${0%/*}
 . "$SCRIPT_DIR/common.sh"
+. "$SCRIPT_DIR/system-dns.sh"
 
 runtime_stop() {
   local failed=0
@@ -122,7 +123,7 @@ version_json() {
 
 status_json() {
   local enabled=true supervisor=stopped daemon=stopped web=stopped lifecycle=stopped config_ok=1 receiver=stopped
-  local tailscale_status=null tailscale_prefs=null module_version engine_version backend warning health saved
+  local tailscale_status=null tailscale_prefs=null module_version engine_version backend warning health saved android_dns_write_blocked=0
   DIAGNOSTICS=
   DATA_PLANE=stopped
   load_config || { config_ok=0; diagnostic config-invalid error "$CONFIG_ERROR"; }
@@ -150,13 +151,28 @@ status_json() {
       data_plane_health "$tailscale_status" || true
       android_login_diagnostics "$tailscale_status"
       health=$(printf '%s' "$tailscale_status" | json_read health)
+      if [ -n "$health" ]; then
+        filtered=
+        while IFS= read -r line; do
+          [ -n "$line" ] || continue
+          case "$line" in
+            *resolv.conf*'read-only file system'*|*'failed to set the DNS configuration of your device'*)
+              android_dns_write_blocked=1 ;;
+            *) filtered="${filtered}${filtered:+
+}$line" ;;
+          esac
+        done <<EOF
+$health
+EOF
+        health=$filtered
+      fi
       [ -z "$health" ] || diagnostic upstream-health warning 'Tailscale reports health warnings; see tailscale.Health'
     else DATA_PLANE=unknown
     fi
     if [ "$tailscale_prefs" != null ]; then
       for warning in $(printf '%s' "$tailscale_prefs" | json_read warnings); do
         case "$warning" in
-          dns) diagnostic dns-accepted warning 'Effective preferences accept Tailscale DNS settings' ;;
+          dns) diagnostic dns-accepted info 'Effective preferences accept Tailscale DNS settings' ;;
           routes) diagnostic routes-accepted warning 'Effective preferences accept advertised subnet routes' ;;
           exit) diagnostic exit-node-configured warning 'Effective preferences select an exit node' ;;
           advertised) diagnostic routes-advertised warning 'Effective preferences advertise routes' ;;
@@ -164,6 +180,15 @@ status_json() {
       done
     fi
   fi
+    if system_dns_enabled; then
+      if system_dns_applied; then
+        diagnostic system-dns-active info 'All app DNS queries use the Tailscale resolver; keep Android Private DNS off'
+      else
+        diagnostic system-dns-inactive warning 'System-wide DNS is enabled but not applied; the daemon must be running'
+      fi
+    elif [ "$android_dns_write_blocked" = 1 ]; then
+      diagnostic android-system-dns info 'Android keeps its own system DNS; enable system-wide DNS to route app queries through Tailscale'
+    fi
   saved=$(sed -n '1p' "$RUN_DIR/lifecycle" 2>/dev/null)
   if [ "$enabled" = false ]; then lifecycle=disabled
   elif migration_required; then lifecycle=migration-required; diagnostic migration-required warning 'Legacy identity requires explicit migration'
@@ -196,7 +221,9 @@ status_json() {
   printf '"runtime":{"activeVersion":'; version_json "$BUNDLE_DIR"
   printf ',"stagedVersion":'; version_json "$KST_STAGED_DIR"
   printf ',"previousVersion":'; version_json "$TS_DIR/previous"
-  printf '},"tailscale":%s,"prefs":%s,"diagnostics":[%s]}\n' "$tailscale_status" "$tailscale_prefs" "$DIAGNOSTICS"
+  if system_dns_enabled; then sd_enabled=true; else sd_enabled=false; fi
+  if system_dns_applied; then sd_applied=true; else sd_applied=false; fi
+  printf '},"systemDns":{"enabled":%s,"applied":%s},"tailscale":%s,"prefs":%s,"diagnostics":[%s]}\n' "$sd_enabled" "$sd_applied" "$tailscale_status" "$tailscale_prefs" "$DIAGNOSTICS"
 }
 
 runtime_logs() {
@@ -257,6 +284,18 @@ dns_toggle() {
   esac
 }
 
+system_dns_enable() {
+  dns_set true || return 1
+  system_dns_apply || return 1
+  : > "$SYSTEM_DNS_FLAG" || { system_dns_remove_quiet; return 1; }
+  echo 'System-wide DNS enabled; Android Private DNS should be off'
+}
+system_dns_disable() {
+  system_dns_remove_quiet
+  rm -f "$SYSTEM_DNS_FLAG"
+  echo 'System-wide DNS disabled'
+}
+
 case "$1" in
   enable) with_control_lock runtime_enable ;;
   disable) with_control_lock runtime_disable ;;
@@ -271,10 +310,12 @@ case "$1" in
   web-restart) with_control_lock web_restart ;;
   login-server) with_control_lock login_server ;;
   enable-dns) with_control_lock dns_set true ;;
+  enable-system-dns) with_control_lock system_dns_enable ;;
+  disable-system-dns) with_control_lock system_dns_disable ;;
   disable-dns) with_control_lock dns_set false ;;
   toggle-dns) with_control_lock dns_toggle ;;
   taildrop-save-dir) with_control_lock taildrop_save_directory ;;
   taildrop-targets) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_targets ;;
   taildrop-send) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_send ;;
-  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|enable-dns|disable-dns|toggle-dns|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
+  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|enable-dns|disable-dns|toggle-dns|enable-system-dns|disable-system-dns|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
 esac

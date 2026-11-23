@@ -85,6 +85,18 @@ describe("schema 2 dashboard", () => {
     expect(root.querySelector("img")).toBeNull();
     expect(root.textContent).toContain(markup);
   });
+
+  it("offers opt-in system-wide DNS with its limits", () => {
+    const root = document.createElement("div");
+    renderDashboard(root, parseRuntimeStatus(JSON.stringify(degraded)));
+    expect(root.querySelector("[data-action=disable-system-dns]")).not.toBeNull();
+    expect(root.textContent).toContain("Turn Android Private DNS off");
+    expect(root.textContent).toContain("enabled but not applied");
+    const idle = document.createElement("div");
+    renderDashboard(idle, parseRuntimeStatus(JSON.stringify(running)));
+    expect(idle.querySelector("[data-action=enable-system-dns]")?.textContent)
+      .toContain("Use Tailscale DNS for all apps");
+  });
 });
 
 describe("renderLogs", () => {

@@ -92,6 +92,16 @@ describe("parseRuntimeStatus", () => {
     expect(parseRuntimeStatus(JSON.stringify(data)).hostname).toBe("pkx110");
   });
 
+  it("parses opt-in system-wide DNS state and tolerates older status", () => {
+    expect(parseRuntimeStatus(JSON.stringify(running)).systemDns).toEqual({ enabled: false, applied: false });
+    expect(parseRuntimeStatus(JSON.stringify(degraded)).systemDns).toEqual({ enabled: true, applied: false });
+    const legacy = structuredClone(running);
+    delete (legacy as { systemDns?: unknown }).systemDns;
+    expect(parseRuntimeStatus(JSON.stringify(legacy)).systemDns).toBeNull();
+    const invalid = { ...structuredClone(running), systemDns: { enabled: "yes", applied: true } };
+    expect(() => parseRuntimeStatus(JSON.stringify(invalid))).toThrow("Invalid runtime status");
+  });
+
   it.each([
     { schemaVersion: 1 }, { lifecycle: "fictional" }, { runtime: {} },
     { taildrop: undefined }, { taildrop: { directory: 42, receiver: "running" } },
