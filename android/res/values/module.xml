@@ -69,4 +69,22 @@
     <string name="module_unknown">Unknown</string>
     <string name="module_none">None</string>
     <string name="module_not_checked">Not checked</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_needs_login">Sign-in required</string>
+    <string name="status_needs_approval">Device approval required</string>
+    <string name="status_starting">Starting</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_disabled">Disabled</string>
+    <string name="status_failed">Not running</string>
+    <string name="status_migration">Migration required</string>
+    <string name="status_ipv4">Tailscale IP</string>
+    <string name="status_ipv6">IPv6</string>
+    <string name="status_taildrop">Taildrop</string>
+    <string name="status_dns">DNS</string>
+    <string name="status_dns_all_apps">Tailscale for all apps</string>
+    <string name="status_dns_not_applied">All apps (not applied)</string>
+    <string name="status_mode">Mode</string>
+    <string name="status_version">Module</string>
+    <string name="status_warning">Warning</string>
+    <string name="status_error">Error</string>
 </resources>
