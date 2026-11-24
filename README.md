@@ -306,12 +306,16 @@ No script edits another module's firewall, proxy, DNS, or ZeroTier
 configuration; the opt-in system-DNS redirect owns only this module's chains.
 
 System-wide DNS is opt-in and owned by this module. `enable-system-dns`
-redirects other processes' TCP/UDP port 53 to the Tailscale internal resolver
-(`100.100.100.100`), which answers MagicDNS and forwards other names using the
-tailnet nameservers delivered by the coordination server. `tailscaled`'s own
-upstream queries (uid 0), private networks, loopback and the resolver itself
-are excluded. IPv6 uses NAT when the kernel supports it and otherwise rejects
-port 53 so queries fall back to IPv4. Turn Android Private DNS off; apps with
+redirects other processes' TCP/UDP port 53 to the tailnet nameservers
+delivered by the coordination server, source-NATing queries to the node's
+tailnet address (tailnet resolvers ignore carrier CGNAT sources), so every app
+gets MagicDNS and the tailnet DNS without a VPN slot. `tailscaled`'s own
+traffic is excluded by Tailscale's socket mark (`0x80000/0xff0000`), because
+Android's `netd` resolver itself runs as root and cannot be excluded by uid.
+Loopback and the resolver itself are excluded; LAN, carrier and public
+resolvers are overridden, which is the point of enabling it.
+IPv6 uses NAT when the kernel supports it and otherwise rejects port 53 so
+queries fall back to IPv4. Turn Android Private DNS off; apps with
 built-in DoH bypass the redirect. Rules are removed when the daemon stops, the
 feature is disabled, or the module is uninstalled, and nothing is touched while
 the feature is off. Other DNS modules are not modified and should not be

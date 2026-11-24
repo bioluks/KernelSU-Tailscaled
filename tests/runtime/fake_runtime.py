@@ -76,6 +76,13 @@ elif name == 'tailscale':
         sock.bind((host, int(port)))
         sock.listen()
         serve(sock)
+    elif 'dns' in args and 'status' in args:
+        fixture = root / 'dns-status.json'
+        print(fixture.read_text() if fixture.exists() else json.dumps({
+            'Resolvers': [{'Addr': '100.64.0.6'}, {'Addr': '100.64.0.7'}],
+            'CurrentTailnet': {'MagicDNSEnabled': True, 'MagicDNSSuffix': 'lan',
+                               'SelfDNSName': 'phone.lan'},
+        }))
     elif 'status' in args:
         if (root / 'cli-hang').exists():
             time.sleep(20)
@@ -83,8 +90,9 @@ elif name == 'tailscale':
     elif 'prefs' in args:
         print((root / 'prefs.json').read_text())
     elif 'ip' in args:
-        for address in json.loads((root / 'status.json').read_text())['TailscaleIPs']:
-            if ':' not in address:
+        addresses = json.loads((root / 'status.json').read_text())['TailscaleIPs']
+        for address in addresses:
+            if ('-6' in args) == (':' in address):
                 print(address)
     elif 'localapi' in args:
         method, endpoint, *body = args[args.index('localapi') + 1:]

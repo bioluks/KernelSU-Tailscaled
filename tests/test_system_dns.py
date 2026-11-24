@@ -59,9 +59,14 @@ class SystemDnsTests(RuntimeHarness):
         self.assertEqual(0, result.returncode, result.stderr)
 
         chain = self.rules()
-        self.assertIn('100.100.100.100:53', ' '.join(chain))
-        self.assertTrue(any('-m owner --uid-owner 0 -j RETURN' in rule for rule in chain))
-        self.assertTrue(any('192.168.0.0/16 -j RETURN' in rule for rule in chain))
+        self.assertIn('100.64.0.6:53', ' '.join(chain))
+        self.assertTrue(any('--mark 0x80000/0xff0000' in rule for rule in chain))
+        self.assertTrue(any('127.0.0.0/8 -j RETURN' in rule for rule in chain))
+        self.assertTrue(any('-p udp' in rule and '--dport 53' in rule and '-j SNAT' in rule
+                            and '--to-source 100.100.1.1' in rule for rule in self.rules('nat', 'POSTROUTING')))
+        self.assertTrue(any('-p tcp' in rule and '--dport 53' in rule and '-j SNAT' in rule
+                            and '--to-source 100.100.1.1' in rule for rule in self.rules('nat', 'POSTROUTING')))
+        self.assertFalse(any('192.168.0.0/16' in rule for rule in chain))
         jumps = self.jumps()
         self.assertEqual(1, jumps.count('-p udp --dport 53 -j KST_SYSDNS'))
         self.assertEqual(1, jumps.count('-p tcp --dport 53 -j KST_SYSDNS'))
@@ -136,6 +141,34 @@ class SystemDnsTests(RuntimeHarness):
         self.assertIn('Another DNS redirect', result.stderr)
         self.assert_absent()
         self.assertFalse((self.state / 'system-dns-enabled').exists())
+
+    def test_enable_requires_magicdns_answers_from_the_resolver(self):
+        (self.root / 'dns-self-fail').touch()
+        self.start()
+
+        result = self.run_command('enable-system-dns')
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('probe', result.stderr)
+        self.assert_absent()
+        self.assertFalse((self.state / 'system-dns-enabled').exists())
+
+    def test_resolver_change_reapplies_on_daemon_restart(self):
+        self.start()
+        self.assertEqual(0, self.run_command('enable-system-dns').returncode)
+        (self.root / 'dns-status.json').write_text(json.dumps({
+            'Resolvers': [{'Addr': '100.64.0.9'}],
+            'CurrentTailnet': {'MagicDNSEnabled': True, 'MagicDNSSuffix': 'lan',
+                               'SelfDNSName': 'phone.lan'},
+        }))
+
+        self.assertEqual(0, self.run_command('restart').returncode)
+
+        chain = self.rules()
+        self.assertIn('100.64.0.9:53', ' '.join(chain))
+        self.assertFalse(any('100.64.0.6' in rule for rule in chain))
+        self.assertTrue(any('-d 100.64.0.9' in rule and 'SNAT' in rule
+                            for rule in self.rules('nat', 'POSTROUTING')))
 
     def test_dormant_foreign_dns_chain_is_reported_after_enable(self):
         self.preload_netfilter({'nat': {

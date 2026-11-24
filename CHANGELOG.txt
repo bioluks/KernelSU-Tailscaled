@@ -1,17 +1,17 @@
 v3.5.0 (bioluks) - Opt-in system-wide DNS through Tailscale
 
 - Add opt-in system-wide DNS: redirect Android's port-53 queries to the
-  Tailscale internal resolver, which serves MagicDNS and forwards other names
-  per the tailnet DNS settings from the coordination server.
+  tailnet nameservers from the coordination server (source-NATed to the node's
+  tailnet address), serving MagicDNS and forwarded lookups for every app.
 - Control it with `control.sh enable-system-dns` / `disable-system-dns` or the
   new WebUI toggle. It is off by default and never touches netfilter until
   enabled.
-- Owned netfilter chains exclude tailscaled's own upstream queries and private
-  destinations; IPv6 falls back to rejecting port 53 when the kernel lacks
-  IPv6 NAT. Rules are removed when the daemon stops or the module is removed.
+- Owned netfilter chains exclude tailscaled's socket-marked traffic and
+  loopback; IPv6 falls back to rejecting port 53 when the kernel lacks IPv6
+  NAT. Rules are removed when the daemon stops or the module is removed.
 - Report the expected Android /etc/resolv.conf write failure as an accurate
   info diagnostic instead of a misleading health warning.
-- Version code 30050000 advances v3.4.0_tailscale1.104.7.
+- Version code 30050004 advances v3.4.0_tailscale1.104.7.
 
 v3.4.0 (bioluks) - Tailscale 1.104.7 engine and companion landing redesign
 

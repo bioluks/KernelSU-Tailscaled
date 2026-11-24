@@ -287,8 +287,10 @@ dns_toggle() {
 
 system_dns_enable() {
   dns_set true || return 1
+  system_dns_discover || { echo 'Could not read the tailnet DNS configuration from the daemon' >&2; return 1; }
+  [ -n "$SYSTEM_DNS_TARGET4" ] || { echo 'The tailnet has no IPv4 DNS nameserver; configure one in your coordination server' >&2; return 1; }
   system_dns_apply || return 1
-  : > "$SYSTEM_DNS_FLAG" || { system_dns_remove_quiet; return 1; }
+  system_dns_desired > "$SYSTEM_DNS_FLAG" || { system_dns_remove_all; return 1; }
   echo 'System-wide DNS enabled; Android Private DNS should be off'
 }
 system_dns_disable() {

@@ -1,6 +1,6 @@
 {
   "version": "v3.5.0_tailscale1.104.7",
-  "versionCode": 30050000,
+  "versionCode": 30050004,
   "zipUrl": "https://github.com/bioluks/KernelSU-Tailscaled/releases/download/v3.5.0_tailscale1.104.7/KernelSU-Tailscaled-v3.5.0_tailscale1.104.7.zip",
   "changelog": "https://raw.githubusercontent.com/bioluks/KernelSU-Tailscaled/master/CHANGELOG.txt"
 }

@@ -12,15 +12,15 @@ with (root / 'netfilter-calls.log').open('a') as stream:
     stream.write(json.dumps([name, *args]) + '\n')
 
 if name == 'nslookup':
-    if (root / 'dns-probe-fail').exists():
-        print('Server:\t\t100.100.100.100')
-        print('Address 1:\t100.100.100.100\tmagicdns.localhost-tailscale-daemon')
-        print('')
+    server = args[1] if len(args) > 1 else '100.100.100.100'
+    failing = (root / 'dns-probe-fail').exists() or (
+        (root / 'dns-self-fail').exists() and len(args) > 0 and args[0] == 'phone.lan')
+    print('Server:\t\t' + server)
+    print('Address 1:\t' + server + '\tmagicdns.localhost-tailscale-daemon')
+    print('')
+    if failing:
         print("nslookup: can't resolve 'example.com'")
         sys.exit(1)
-    print('Server:\t\t100.100.100.100')
-    print('Address 1:\t100.100.100.100\tmagicdns.localhost-tailscale-daemon')
-    print('')
     print('Name:\texample.com')
     print('Address 1:\t1.1.1.1\texample.com')
     print('Address 2:\t1.0.0.1\texample.com')
