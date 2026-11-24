@@ -11,7 +11,6 @@ v3.5.0 (bioluks) - Opt-in system-wide DNS through Tailscale
   NAT. Rules are removed when the daemon stops or the module is removed.
 - Report the expected Android /etc/resolv.conf write failure as an accurate
   info diagnostic instead of a misleading health warning.
-- Version code 30050004 advances v3.4.0_tailscale1.104.7.
 - Version code 30050005 advances v3.4.0_tailscale1.104.7.
 v3.4.0 (bioluks) - Tailscale 1.104.7 engine and companion landing redesign
 
