@@ -209,14 +209,16 @@ Version code `30060000` advances v3.5.0_tailscale1.104.7; the bundled engine is
 unchanged (Tailscale 1.104.7). Companion APK signing certificate unchanged
 (`0924bb045985c248e9ddf9e9139e090aeac72446ae94cf41d8896af5dc626ae3`). The three
 ZIPs rebuilt from `git archive` of the tagged commit in the pinned container are
-byte-identical to the locally built candidates.
+byte-identical to the locally built candidates. The companion APK is identified
+by its signing certificate (`0924bb…`), not its bytes: signed APK bytes vary per
+signing run, so the hash above is the CI-published artifact's.
 
 | Asset | SHA-256 |
 | --- | --- |
 | `KernelSU-Tailscaled-v3.6.0_tailscale1.104.7.zip` | `83eed5e3f3f6779ad8403588d08cf0681c8d70af857d92c10303860ffc193f06` |
 | `KernelSU-Tailscaled-arm-v3.6.0_tailscale1.104.7.zip` | `3937d6c582e0ea6b835ffa5b140e9574bba4d1edb982f3e27307b08eddc93268` |
 | `KernelSU-Tailscaled-arm64-v3.6.0_tailscale1.104.7.zip` | `1ad1dda91b76443e8259aa65c71f359a5a78f61c51a01a6a25dfd9902f80a283` |
-| `KernelSU-Tailscaled-companion-v3.6.0_tailscale1.104.7.apk` | `e2ef3a334b8f67bd0cb9679483052915e43b142ace629fd43ac87503505288b8` |
+| `KernelSU-Tailscaled-companion-v3.6.0_tailscale1.104.7.apk` | `8f057b2d5e028ada851a0170daa5f44afb324bcb7ec6caf64a1b6dad050ebe22` (published build) |
 
 Device evidence (Poco F1 `60b09a5f`, KernelSU-Next Manager 1.1.1, Android 15):
 
