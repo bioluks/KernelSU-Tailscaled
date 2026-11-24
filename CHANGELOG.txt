@@ -1,4 +1,4 @@
-Unreleased (bioluks) - Companion module settings and in-app panel
+v3.6.0 (bioluks) - Companion module settings, in-app panel, and Taildrop history
 
 - Add a native Module settings screen to the companion covering every module
   setting in the KernelSU WebUI: control server / Headscale sign-in, Taildrop
@@ -28,8 +28,9 @@ Unreleased (bioluks) - Companion module settings and in-app panel
   the companion or expand it in the WebUI.
 - Warn when Android Private DNS is set to a specific provider (strict DoT),
   which bypasses system-wide DNS, and offer `private-dns-off` to switch it off
-  on explicit confirmation. Automatic mode is compatible and is not flagged.
-  status-json reports `systemDns.privateDns`.
+  on explicit confirmation. Automatic mode can fall back to plain DNS and is
+  not flagged. status-json reports `systemDns.privateDns`.
+- Version code 30060000 advances v3.5.0_tailscale1.104.7; the engine stays at 1.104.7.
 
 v3.5.0 (bioluks) - Opt-in system-wide DNS through Tailscale
 
