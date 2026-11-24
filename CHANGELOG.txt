@@ -10,6 +10,13 @@ Unreleased (bioluks) - Companion module settings and in-app panel
 - The companion now requests INTERNET for the loopback panel only; cleartext is
   limited to 127.0.0.1 and other links open externally. A blocked per-app
   network switch shows app settings, retry and browser options.
+- Replace the companion's raw status text with a structured card: connection
+  state with a colored indicator, MagicDNS name, Tailscale IPs, Taildrop,
+  system DNS, mode and module version; only warnings and errors are callouts.
+- Fix the runtime dying when the app that started it is removed from recents.
+  Android kills an app's whole uid/pid process group, and control actions run
+  from KernelSU Manager's WebUI or the companion landed the daemon in it.
+  control.sh now leaves any per-app process group before starting anything.
 
 v3.5.0 (bioluks) - Opt-in system-wide DNS through Tailscale
 

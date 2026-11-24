@@ -8,6 +8,26 @@ kst_awk() {
   else command awk "$@"; fi
 }
 
+# Move this shell out of any Android per-app process group (uid_N/pid_M) so
+# processes it starts survive the calling app being killed. Other groups stay.
+kst_leave_app_cgroup() (
+  # Subshell scope: bundle-lib avoids non-POSIX `local`; $$ is still this script's PID.
+  [ -r "${KST_CGROUP_SELF:-/proc/self/cgroup}" ] || return 0
+  while IFS=: read -r _ controllers path; do
+    case "$path" in */uid_[0-9]*/pid_[0-9]*) ;; *) continue ;; esac
+    # cgroup2 has no controller list; a v1 mount must carry every listed controller.
+    mount=$(kst_awk -v wanted="$controllers" '
+      wanted == "" && $3 == "cgroup2" { print $2; exit }
+      wanted != "" && $3 == "cgroup" {
+        n = split(wanted, need, ","); ok = 1
+        for (i = 1; i <= n; i++) if (index("," $4 ",", "," need[i] ",") == 0) ok = 0
+        if (ok) { print $2; exit }
+      }' "${KST_CGROUP_MOUNTS:-/proc/mounts}")
+    [ -n "$mount" ] && [ -w "$mount/cgroup.procs" ] || continue
+    printf '%s\n' "$$" > "$mount/cgroup.procs" 2>/dev/null || :
+  done < "${KST_CGROUP_SELF:-/proc/self/cgroup}"
+)
+
 kst_private_root() {
   case "$TS_DIR" in /*) ;; *) kst_error invalid-state-root; return 1 ;; esac
   [ ! -L "$TS_DIR" ] || { kst_error symlink-state-root; return 1; }

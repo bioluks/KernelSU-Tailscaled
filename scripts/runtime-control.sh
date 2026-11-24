@@ -93,6 +93,10 @@ case "$1" in
     exec sh "$selected/tailscale/scripts/tailscale-service" "$1" 9>&- 8>&-
     ;;
 esac
+# Managers and the companion run this from an app process. Android kills an
+# app's whole process group (its uid_N/pid_M cgroup) when the app is removed,
+# which would take the daemon down with it. Leave every per-app group first.
+kst_leave_app_cgroup
 with_control_lock kst_dispatch "$1"
 result=$?
 sh "$BUNDLE_DIR/scripts/status-summary.sh" >/dev/null 2>&1 || true

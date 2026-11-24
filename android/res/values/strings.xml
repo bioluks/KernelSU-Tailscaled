@@ -7,7 +7,6 @@
     <string name="main_logs_summary">View daemon and module logs</string>
     <string name="main_send_summary">Send files to a device with Taildrop</string>
     <string name="main_settings_summary">Language, panel and notifications</string>
-    <string name="status">Module status</string>
     <string name="refresh">Refresh</string>
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>

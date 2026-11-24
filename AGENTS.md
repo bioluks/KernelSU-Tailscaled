@@ -144,9 +144,13 @@ python3 scripts/verify-package.py --zip <zip> --arch all|arm|arm64
 ## Devices (test conventions)
 
 - OnePlus 9 Pro `7a3c3b6d` (KernelSU-Next 3.4.2, Android 16, arm64, Headscale
-  tailnet, MagicDNS `phone.lan`). Poco F1 `60b09a5f` (KernelSU-Next 1.1.1,
-  universal ZIP, **no tailnet** — NeedsLogin; companion root must be granted in
-  Manager).
+  tailnet, MagicDNS `phone.lan`) — the user's **primary** phone; avoid
+  disruptive tests. Poco F1 `60b09a5f` (KernelSU-Next 1.1.1, Android 15,
+  universal ZIP, same tailnet as `poco.lan` / 100.64.0.8) — a **disposable**
+  test device; anything goes. Companion root must be granted in Manager.
+- Headscale is reachable as `ssh headscale` (LXC); `headscale preauthkeys
+  create --user 1 --expiration 30m` joins a device via the module's socket.
+- Taildrop between the two phones is verified both ways through the companion.
 - Always `uiautomator dump` and find the node before tapping; **stale
   "Flash success" dialogs persist** — dismiss them and verify the install via
   `su -c "readlink -f /data/adb/kernelsu-tailscaled/current"` and
@@ -164,3 +168,10 @@ python3 scripts/verify-package.py --zip <zip> --arch all|arm|arm64
   CLI calls.
 - Commit the generated `webroot/assets/app.js` after every `npm run build`;
   CI diffs it.
+- Android kills an app's whole `uid_N/pid_M` cgroup (v2) when it is removed
+  from recents. Anything started from KernelSU Manager's WebUI or the companion
+  inherits that group, so the daemon died with the manager ("PhantomProcess …
+  died"). `kst_leave_app_cgroup` in `bundle-lib.sh` moves the controller out
+  first; verify with `/sys/fs/cgroup/uid_*/pid_*/cgroup.procs`.
+- Ad-hoc `adb shell su -c '…$(pidof x)…'` expands on the Mac side; push a
+  script to `/data/local/tmp` and run that instead.

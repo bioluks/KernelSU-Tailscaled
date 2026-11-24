@@ -6,8 +6,16 @@ import org.json.JSONObject;
 
 /** The subset of the public {@code status-json} contract the companion acts on. */
 final class ModuleStatus {
+    /** One status-json diagnostic; severity is info, warning or error. */
+    static final class Diagnostic {
+        final String severity;
+        final String message;
+        Diagnostic(String severity, String message) { this.severity = severity; this.message = message; }
+    }
+
     final boolean enabled;
     final String lifecycle;
+    final String mode;
     final String backendState;
     final boolean daemonRunning;
     final boolean webRunning;
@@ -20,6 +28,12 @@ final class ModuleStatus {
     final boolean systemDnsApplied;
     final String taildropDirectory;
     final boolean taildropReceiverRunning;
+    final String moduleVersion;
+    final String tailscaleVersion;
+    final String dnsName;
+    final String ipv4;
+    final String ipv6;
+    final java.util.List<Diagnostic> diagnostics;
     final String activeVersion;
     final String stagedVersion;
     final String previousVersion;
@@ -30,12 +44,28 @@ final class ModuleStatus {
     private ModuleStatus(JSONObject state) throws JSONException {
         enabled = state.getBoolean("enabled");
         lifecycle = state.getString("lifecycle");
+        mode = state.optString("mode", "native");
+        moduleVersion = state.optString("moduleVersion");
+        tailscaleVersion = state.optString("tailscaleVersion");
         JSONObject components = state.getJSONObject("components");
         daemonRunning = "running".equals(components.optString("daemon"));
         webRunning = "running".equals(components.optString("web"));
         JSONObject tailscale = state.optJSONObject("tailscale");
         String backend = text(tailscale, "BackendState");
         backendState = backend != null ? backend : enabled ? "Unknown" : "Stopped";
+        JSONObject self = tailscale == null ? null : tailscale.optJSONObject("Self");
+        String name = text(self, "DNSName");
+        if (name != null && name.endsWith(".")) name = name.substring(0, name.length() - 1);
+        dnsName = name != null ? name : text(self, "HostName");
+        String v4 = null, v6 = null;
+        JSONArray ips = tailscale == null ? null : tailscale.optJSONArray("TailscaleIPs");
+        if (ips != null) for (int i = 0; i < ips.length(); i++) {
+            String ip = ips.optString(i);
+            if (v4 == null && ip.matches("\\d{1,3}(\\.\\d{1,3}){3}")) v4 = ip;
+            else if (v6 == null && ip.contains(":")) v6 = ip;
+        }
+        ipv4 = v4;
+        ipv6 = v6;
         JSONObject prefs = state.optJSONObject("prefs");
         acceptDns = prefs != null && prefs.opt("CorpDNS") instanceof Boolean ? prefs.getBoolean("CorpDNS") : null;
         acceptRoutes = prefs != null && prefs.opt("RouteAll") instanceof Boolean ? prefs.getBoolean("RouteAll") : null;
@@ -54,12 +84,16 @@ final class ModuleStatus {
         previousVersion = text(runtime, "previousVersion");
         boolean required = "migration-required".equals(lifecycle);
         boolean awaiting = false;
-        JSONArray diagnostics = state.optJSONArray("diagnostics");
-        if (diagnostics != null) for (int i = 0; i < diagnostics.length(); i++) {
-            String code = diagnostics.getJSONObject(i).optString("code");
+        java.util.ArrayList<Diagnostic> list = new java.util.ArrayList<>();
+        JSONArray raw = state.optJSONArray("diagnostics");
+        if (raw != null) for (int i = 0; i < raw.length(); i++) {
+            JSONObject item = raw.getJSONObject(i);
+            String code = item.optString("code");
             required |= "migration-required".equals(code);
             awaiting |= "migration-awaiting-enable".equals(code);
+            list.add(new Diagnostic(item.optString("severity", "info"), item.optString("message")));
         }
+        diagnostics = java.util.Collections.unmodifiableList(list);
         migrationRequired = required;
         awaitingEnable = awaiting;
         String listen = text(state, "webListen");

@@ -5,6 +5,7 @@ import android.content.res.ColorStateList;
 
 import android.content.*;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.*;
 import android.view.*;
@@ -17,7 +18,11 @@ import java.util.concurrent.Executors;
 public final class MainActivity extends Activity {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ArrayList<View> controls = new ArrayList<>();
-    private TextView status;
+    private View stateDot;
+    private TextView headline;
+    private TextView subtitle;
+    private LinearLayout facts;
+    private LinearLayout alerts;
     private TextView result;
     private boolean busy;
     private String displayedLanguage;
@@ -97,9 +102,21 @@ public final class MainActivity extends Activity {
         card.setBackground(Ui.card(this, 16, true));
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView label = Ui.text(this, getString(R.string.status), 16, R.color.on_surface);
-        label.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        header.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
+        stateDot = new View(this);
+        stateDot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams dotLayout = new LinearLayout.LayoutParams(dp(12), dp(12));
+        dotLayout.setMarginEnd(dp(12));
+        header.addView(stateDot, dotLayout);
+        LinearLayout titles = new LinearLayout(this);
+        titles.setOrientation(LinearLayout.VERTICAL);
+        headline = Ui.text(this, getString(R.string.working), 18, R.color.on_surface);
+        headline.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        headline.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        titles.addView(headline, new LinearLayout.LayoutParams(-1, -2));
+        subtitle = Ui.text(this, "", 14, R.color.muted);
+        subtitle.setTextIsSelectable(true);
+        titles.addView(subtitle, new LinearLayout.LayoutParams(-1, -2));
+        header.addView(titles, new LinearLayout.LayoutParams(0, -2, 1));
         Button refresh = new Button(this, null, android.R.attr.borderlessButtonStyle);
         refresh.setText(R.string.refresh);
         refresh.setAllCaps(false);
@@ -110,16 +127,46 @@ public final class MainActivity extends Activity {
         refresh.setPadding(dp(8), 0, dp(8), 0);
         refresh.setOnClickListener(v -> load("status-json"));
         header.addView(refresh, new LinearLayout.LayoutParams(-2, dp(48)));
-        card.addView(header);
-        status = Ui.text(this, getString(R.string.working), 16, R.color.on_surface);
-        status.setTextIsSelectable(true);
-        status.setPadding(0, dp(4), 0, dp(4));
-        card.addView(status, new LinearLayout.LayoutParams(-1, -2));
-        TextView idle = Ui.text(this, getString(R.string.idle_note), 14, R.color.muted);
-        idle.setPadding(0, dp(4), 0, 0);
+        card.addView(header, new LinearLayout.LayoutParams(-1, -2));
+        facts = new LinearLayout(this);
+        facts.setOrientation(LinearLayout.VERTICAL);
+        facts.setPadding(0, dp(8), 0, 0);
+        card.addView(facts, new LinearLayout.LayoutParams(-1, -2));
+        alerts = new LinearLayout(this);
+        alerts.setOrientation(LinearLayout.VERTICAL);
+        card.addView(alerts, new LinearLayout.LayoutParams(-1, -2));
+        TextView idle = Ui.text(this, getString(R.string.idle_note), 13, R.color.muted);
+        idle.setPadding(0, dp(12), 0, 0);
         card.addView(idle, new LinearLayout.LayoutParams(-1, -2));
         controls.add(refresh);
         return card;
+    }
+
+    /** Label/value row; the value is selectable so IPs can be copied. */
+    private void fact(int label, String value) {
+        LinearLayout row = new LinearLayout(this);
+        row.setPadding(0, dp(6), 0, dp(6));
+        TextView name = Ui.text(this, getString(label), 14, R.color.muted);
+        row.addView(name, new LinearLayout.LayoutParams(dp(104), -2));
+        TextView text = Ui.text(this, value, 14, R.color.on_surface);
+        text.setTextIsSelectable(true);
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
+        row.setContentDescription(getString(label) + ": " + value);
+        facts.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private void alert(ModuleStatus.Diagnostic item) {
+        TextView text = Ui.text(this, item.message, 14, R.color.on_surface);
+        boolean error = "error".equals(item.severity);
+        GradientDrawable shape = new GradientDrawable();
+        shape.setCornerRadius(dp(12));
+        shape.setColor(getColor(error ? R.color.error_surface : R.color.warning_surface));
+        text.setBackground(shape);
+        text.setPadding(dp(12), dp(8), dp(12), dp(8));
+        text.setContentDescription(getString(error ? R.string.status_error : R.string.status_warning) + ": " + item.message);
+        LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(-1, -2);
+        layout.topMargin = dp(8);
+        alerts.addView(text, layout);
     }
 
     private void actionButton(LinearLayout row, int label, Runnable action) {
@@ -182,7 +229,7 @@ public final class MainActivity extends Activity {
     private void load(String action) {
         if (busy) return;
         setBusy(true);
-        status.setText(R.string.working);
+        showWorking();
         worker.execute(() -> {
             try {
                 String answer = RootCommand.run(action);
@@ -204,51 +251,70 @@ public final class MainActivity extends Activity {
                     }
                 });
             } catch (Exception e) { runOnUiThread(() -> { if (!isDestroyed()) {
-                setBusy(false); status.setText(getString(R.string.error) + "\n" + e.getMessage());
+                setBusy(false); showStatusError(e.getMessage());
             } }); }
         });
     }
+    private void showWorking() {
+        headline.setText(R.string.working);
+        setDot(R.color.muted);
+    }
+
+    private void showStatusError(String message) {
+        headline.setText(R.string.error);
+        subtitle.setText(message);
+        subtitle.setVisibility(View.VISIBLE);
+        setDot(R.color.status_error);
+        facts.removeAllViews();
+        alerts.removeAllViews();
+    }
+
+    private void setDot(int color) {
+        GradientDrawable dot = new GradientDrawable();
+        dot.setShape(GradientDrawable.OVAL);
+        dot.setColor(getColor(color));
+        stateDot.setBackground(dot);
+    }
+
+    /** Headline from lifecycle + backend; facts in rows; only warnings/errors as callouts. */
     private void renderStatus(String value) {
-        try {
-            JSONObject state = new JSONObject(value);
-            JSONObject tailscale = state.optJSONObject("tailscale");
-            JSONObject self = tailscale == null ? null : tailscale.optJSONObject("Self");
-            JSONObject drop = state.optJSONObject("taildrop");
-            String description = state.getString("lifecycle") + " · " + state.getString("mode")
-                    + "\nModule " + state.getString("moduleVersion") + " · Tailscale " + state.getString("tailscaleVersion");
-            if (self != null) {
-                String name = self.optString("DNSName", self.optString("Hostname"));
-                if (!name.isEmpty() && !"null".equals(name)) description += "\n" + name;
-            }
-            if (tailscale != null) {
-                JSONArray ips = tailscale.optJSONArray("TailscaleIPs");
-                if (ips != null && ips.length() > 0) {
-                    StringBuilder list = new StringBuilder(ips.optString(0));
-                    for (int i = 1; i < ips.length(); i++) list.append(", ").append(ips.optString(i));
-                    description += "\n" + tailscale.optString("BackendState") + " · " + list;
-                } else {
-                    description += "\n" + tailscale.optString("BackendState");
-                }
-            }
-            if (drop != null) {
-                String receiver = drop.optString("receiver");
-                String directory = drop.optString("directory");
-                if (!receiver.isEmpty() && !"null".equals(receiver)) description += "\nTaildrop: " + receiver;
-                if (!directory.isEmpty() && !"null".equals(directory)) description += "\n" + directory;
-            }
-            JSONArray diagnostics = state.optJSONArray("diagnostics");
-            if (diagnostics != null) for (int i = 0; i < diagnostics.length(); i++)
-                description += "\n" + diagnostics.getJSONObject(i).optString("message");
-            status.setText(description);
-            showLastTransfer();
-        } catch (JSONException e) { status.setText(getString(R.string.error) + "\n" + e.getMessage()); }
+        ModuleStatus s;
+        try { s = ModuleStatus.parse(value); }
+        catch (JSONException e) { showStatusError(e.getMessage()); return; }
+        int title, color;
+        if (!s.enabled) { title = R.string.status_disabled; color = R.color.muted; }
+        else if ("failed".equals(s.lifecycle)) { title = R.string.status_failed; color = R.color.status_error; }
+        else if ("migration-required".equals(s.lifecycle)) { title = R.string.status_migration; color = R.color.status_warning; }
+        else if ("NeedsLogin".equals(s.backendState)) { title = R.string.status_needs_login; color = R.color.status_warning; }
+        else if ("NeedsMachineAuth".equals(s.backendState)) { title = R.string.status_needs_approval; color = R.color.status_warning; }
+        else if ("Running".equals(s.backendState)) { title = R.string.status_connected; color = R.color.accent; }
+        else if ("starting".equals(s.lifecycle) || "Starting".equals(s.backendState)) { title = R.string.status_starting; color = R.color.status_warning; }
+        else { title = R.string.status_stopped; color = R.color.muted; }
+        headline.setText(title);
+        setDot(color);
+        subtitle.setText(s.dnsName == null ? "" : s.dnsName);
+        subtitle.setVisibility(s.dnsName == null ? View.GONE : View.VISIBLE);
+
+        facts.removeAllViews();
+        if (s.ipv4 != null) fact(R.string.status_ipv4, s.ipv4);
+        if (s.ipv6 != null) fact(R.string.status_ipv6, s.ipv6);
+        fact(R.string.status_taildrop, getString(s.taildropReceiverRunning ? R.string.module_running : R.string.module_stopped)
+                + " · " + s.taildropDirectory);
+        if (s.hasSystemDns && s.systemDnsEnabled) fact(R.string.status_dns, getString(s.systemDnsApplied
+                ? R.string.status_dns_all_apps : R.string.status_dns_not_applied));
+        fact(R.string.status_mode, "native".equals(s.mode) ? "Native TUN" : "Userspace");
+        fact(R.string.status_version, s.moduleVersion);
+
+        alerts.removeAllViews();
+        for (ModuleStatus.Diagnostic item : s.diagnostics) if (!"info".equals(item.severity)) alert(item);
+        showLastTransfer();
     }
 
     /** Starts the loopback panel when needed, then opens it in-app or in the browser per Settings. */
     private void openPanel() {
         if (busy) return;
         setBusy(true);
-        status.setText(R.string.working);
+        showWorking();
         worker.execute(() -> {
             try {
                 String state = RootCommand.run("status-json");
@@ -276,7 +342,7 @@ public final class MainActivity extends Activity {
                     } catch (ActivityNotFoundException e) { showError(e); }
                 });
             } catch (Exception e) { runOnUiThread(() -> { if (!isDestroyed()) {
-                setBusy(false); status.setText(getString(R.string.error) + "\n" + e.getMessage());
+                setBusy(false); showStatusError(e.getMessage());
             } }); }
         });
     }
