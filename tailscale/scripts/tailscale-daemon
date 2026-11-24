@@ -99,7 +99,15 @@ daemon_start() {
     if daemon_health; then
       if initialize_hostname; then
         [ ! -f "$STATE_FILE" ] || chmod 0600 "$STATE_FILE"
-        system_dns_sync || log WARN 'System-wide DNS is not applied'
+        if ! system_dns_sync; then
+          local attempt=0
+          while [ "$attempt" -lt 3 ] && system_dns_enabled; do
+            attempt=$((attempt + 1))
+            sleep 1
+            system_dns_sync && break
+          done
+          system_dns_applied || log WARN 'System-wide DNS is not applied yet; retrying in the background'
+        fi
         return 0
       fi
       break

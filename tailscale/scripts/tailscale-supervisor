@@ -2,6 +2,7 @@
 # shellcheck disable=SC3043
 SCRIPT_DIR=${0%/*}
 . "$SCRIPT_DIR/common.sh"
+. "$SCRIPT_DIR/system-dns.sh"
 ensure_dirs || exit 1
 exec 9>&-
 unset KST_LOCK_HELD
@@ -71,6 +72,9 @@ while :; do
       sh "$BUNDLE_DIR/scripts/hot-finalize.sh" >/dev/null 2>&1 || true
     fi
     sh "$BUNDLE_DIR/scripts/status-summary.sh" >/dev/null 2>&1 || true
+    if system_dns_enabled && ! system_dns_applied; then
+      system_dns_sync || log WARN 'System-wide DNS is still not applied'
+    fi
     maintenance_in=60
   fi
   case "$result" in
