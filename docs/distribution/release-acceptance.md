@@ -169,3 +169,36 @@ was down during the window, so the OnePlus could not reach its control
 endpoint, and the Poco still needs login. The redesigned companion landing,
 settings, and send screens were verified on both phones by UI dump and
 screenshot. The ARMv7 ZIP was verified offline only.
+
+## v3.5.0_tailscale1.104.7 — opt-in system-wide DNS verification
+
+Enabling redirects Android's port-53 queries to the tailnet nameservers
+delivered by the coordination server and source-NATs them to the node's
+tailnet address, because tailnet resolvers ignore carrier CGNAT sources.
+
+| ZIP | SHA-256 |
+| --- | --- |
+| `KernelSU-Tailscaled-v3.5.0_tailscale1.104.7.zip` | `4a1df93e51775106d6f423a9786ad970320372a3eab0a2caeba0d90131bb70cd` |
+| `KernelSU-Tailscaled-arm-v3.5.0_tailscale1.104.7.zip` | `22a301327c3c1a993489b7073d1fd040d65e4ce01f62890deb89cbd1a3f29896` |
+| `KernelSU-Tailscaled-arm64-v3.5.0_tailscale1.104.7.zip` | `8d0ecc6e47f9da61ef4f7101b80347bc68b08063306c79d908e4c5df6e0d4612` |
+
+Device evidence (OnePlus 9 Pro, Android 16, mobile data and Wi-Fi):
+
+- `tcpdump` captures show every Android resolver query leaving via
+  `tailscale0` from `100.64.0.2` to the primary resolver `100.64.0.6:53`,
+  with answers returning; a fresh public name gets a quick authoritative
+  NXDOMAIN, `example.com` resolves, and the MagicDNS name `phone.lan`
+  resolves to `100.64.0.2` through Android's own resolver.
+- Switching Wi-Fi on and off mid-capture: no query to carrier DNS
+  (195.175.x) or the LAN resolver (192.168.1.53) was seen; every answered
+  query went to the tailnet resolver. Unanswered `127.0.0.1:53` queries from
+  Syncthing are unrelated (no port-53 listener exists on the phone).
+- The redirect re-applied automatically after reboot (startup retry plus
+  supervisor maintenance) and after re-flashing an upgraded runtime.
+- The dormant `TS_DNS_ENFORCE`/`TS_HOTSPOT_DNS` chains are reported as a
+  warning; an active foreign port-53 redirect refuses enabling.
+
+Limits: Android Private DNS must stay off; apps with built-in DoH bypass the
+redirect; this kernel lacks IPv6 NAT so IPv6 port 53 is rejected to force the
+IPv4 path; the Poco F1 has no tailnet (still NeedsLogin) and keeps the feature
+off. The ARMv7 ZIP was verified offline only.

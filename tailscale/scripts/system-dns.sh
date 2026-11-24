@@ -103,10 +103,9 @@ system_dns_other_module() {
     iptables -t nat -S 2>/dev/null
     ip6tables -t nat -S 2>/dev/null
     ip6tables -S 2>/dev/null
-  } | grep -v -E -- "KST_SYSDNS" | awk '
-    /^-N / { chain=$2; next }
-    /^-A / && $2 == chain && /--dport 53/ { print chain; exit }
-  '
+  } | grep -E -- '--dport 53' | grep -v -E -- 'KST_SYSDNS' |
+    awk '$2 !~ /^(OUTPUT|PREROUTING|POSTROUTING|INPUT|FORWARD)$/ {print $2}' |
+    sort -u | head -n 1
 }
 
 system_dns_remove_all() {
