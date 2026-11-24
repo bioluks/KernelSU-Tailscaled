@@ -44,7 +44,33 @@ system_dns_probe() {
   else
     output=$(bounded 3 nslookup example.com "$SYSTEM_DNS_TARGET" 2>/dev/null)
   fi
-  printf '%s\n' "$output" | grep -q '^Address'
+  # The server banner also contains "Address"; require an actual answer section.
+  printf '%s\n' "$output" | grep -q '^Name:' &&
+    printf '%s\n' "$output" | grep -q '^Address'
+}
+
+# Active foreign redirects (jumped from OUTPUT/PREROUTING for port 53).
+system_dns_active_conflict() {
+  {
+    iptables -t nat -S OUTPUT 2>/dev/null
+    iptables -t nat -S PREROUTING 2>/dev/null
+    ip6tables -t nat -S OUTPUT 2>/dev/null
+    ip6tables -t nat -S PREROUTING 2>/dev/null
+    ip6tables -S OUTPUT 2>/dev/null
+    ip6tables -S PREROUTING 2>/dev/null
+  } | grep -E -- '--dport 53' | grep -v -E -- "KST_SYSDNS" | head -n 1
+}
+
+# A dormant DNS module: a foreign chain whose own rules redirect port 53.
+system_dns_other_module() {
+  {
+    iptables -t nat -S 2>/dev/null
+    ip6tables -t nat -S 2>/dev/null
+    ip6tables -S 2>/dev/null
+  } | grep -v -E -- "KST_SYSDNS" | awk '
+    /^-N / { chain=$2; next }
+    /^-A / && $2 == chain && /--dport 53/ { print chain; exit }
+  '
 }
 
 system_dns_remove6_quiet() {
@@ -118,9 +144,14 @@ system_dns_apply6() {
 }
 
 system_dns_apply() {
-  local protocol network
+  local protocol network conflict
   system_dns_tool iptables || { echo 'iptables is required for system-wide DNS' >&2; return 1; }
   daemon_running || { echo 'The owned Tailscale daemon must be running' >&2; return 1; }
+  conflict=$(system_dns_active_conflict)
+  if [ -n "$conflict" ]; then
+    echo 'Another DNS redirect is active; disable the other DNS module before enabling system-wide DNS' >&2
+    return 1
+  fi
   system_dns_probe || {
     echo 'The Tailscale resolver did not answer the DNS probe; configure a tailnet DNS nameserver and retry' >&2
     return 1

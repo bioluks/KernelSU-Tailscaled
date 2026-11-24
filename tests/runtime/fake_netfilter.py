@@ -13,9 +13,15 @@ with (root / 'netfilter-calls.log').open('a') as stream:
 
 if name == 'nslookup':
     if (root / 'dns-probe-fail').exists():
+        print('Server:\t\t100.100.100.100')
+        print('Address 1:\t100.100.100.100\tmagicdns.localhost-tailscale-daemon')
+        print('')
         print("nslookup: can't resolve 'example.com'")
         sys.exit(1)
     print('Server:\t\t100.100.100.100')
+    print('Address 1:\t100.100.100.100\tmagicdns.localhost-tailscale-daemon')
+    print('')
+    print('Name:\texample.com')
     print('Address 1:\t1.1.1.1\texample.com')
     print('Address 2:\t1.0.0.1\texample.com')
     sys.exit(0)
@@ -56,6 +62,20 @@ def rule_text(items):
 
 
 if command in ('-S', '-L', '-P'):
+    if command == '-S':
+        target = rest[0] if rest and not rest[0].startswith('-') else None
+        if target and target not in chains:
+            sys.exit(1)
+        if target is None:
+            builtin_names = ('PREROUTING', 'INPUT', 'OUTPUT', 'FORWARD', 'POSTROUTING')
+            for chain_name, rules in chains.items():
+                if chain_name not in builtin_names:
+                    print('-N ' + chain_name)
+                for rule in rules:
+                    print('-A ' + chain_name + ' ' + rule)
+        else:
+            for rule in chains[target]:
+                print('-A ' + target + ' ' + rule)
     sys.exit(0)
 if command == '-N':
     if not rest or rest[0] in chains:

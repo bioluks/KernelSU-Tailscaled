@@ -183,6 +183,7 @@ EOF
     if system_dns_enabled; then
       if system_dns_applied; then
         diagnostic system-dns-active info 'All app DNS queries use the Tailscale resolver; keep Android Private DNS off'
+        [ -z "$(system_dns_other_module)" ] || diagnostic system-dns-other-module warning 'Another DNS redirect module is installed; do not enable both'
       else
         diagnostic system-dns-inactive warning 'System-wide DNS is enabled but not applied; the daemon must be running'
       fi

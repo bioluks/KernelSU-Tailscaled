@@ -29,6 +29,9 @@ class SystemDnsTests(RuntimeHarness):
         self.assertFalse(any('KST_SYSDNS' in rule for rule in self.jumps()))
         self.assertFalse(any('KST_SYSDNS' in rule for rule in self.jumps('filter')))
 
+    def preload_netfilter(self, state):
+        self.netfilter_state.write_text(json.dumps(state))
+
     def test_system_dns_is_opt_in_by_default(self):
         self.start()
 
@@ -119,6 +122,32 @@ class SystemDnsTests(RuntimeHarness):
         self.assertIn('-p tcp --dport 53 -j KST_SYSDNS6', jumps6)
         self.assertEqual([], self.rules('nat', 'KST_SYSDNS6'))
         self.assertTrue(self.rules())
+
+    def test_enable_refuses_active_foreign_dns_redirect(self):
+        self.preload_netfilter({'nat': {
+            'OUTPUT': ['-p udp --dport 53 -j TS_DNS_ENFORCE'],
+            'TS_DNS_ENFORCE': ['-p udp --dport 53 -j DNAT --to-destination 100.64.0.3:53'],
+        }})
+        self.start()
+
+        result = self.run_command('enable-system-dns')
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('Another DNS redirect', result.stderr)
+        self.assert_absent()
+        self.assertFalse((self.state / 'system-dns-enabled').exists())
+
+    def test_dormant_foreign_dns_chain_is_reported_after_enable(self):
+        self.preload_netfilter({'nat': {
+            'TS_DNS_ENFORCE': ['-p udp --dport 53 -j DNAT --to-destination 100.64.0.3:53'],
+        }})
+        self.start()
+
+        result = self.run_command('enable-system-dns')
+        self.assertEqual(0, result.returncode, result.stderr)
+
+        codes = {item['code']: item['severity'] for item in self.status()['diagnostics']}
+        self.assertEqual('warning', codes['system-dns-other-module'])
 
     def test_stale_android_dns_health_is_translated_to_info(self):
         self.write_status(Health=['Tailscale failed to set the DNS configuration of your device: '
