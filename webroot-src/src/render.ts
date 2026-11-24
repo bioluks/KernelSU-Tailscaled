@@ -136,6 +136,12 @@ export function renderDashboard(root: HTMLElement, status: RuntimeStatus): void 
       item.dataset.severity = diagnostic.severity;
       appendText(item, "span", diagnostic.code, "diagnostic-code");
       appendText(item, "p", diagnostic.message);
+      if (diagnostic.detail) {
+        const more = document.createElement("details");
+        appendText(more, "summary", t("Details", "详情"));
+        appendText(more, "pre", diagnostic.detail);
+        item.append(more);
+      }
       warnings.append(item);
     }
     for (const message of status.health) {
@@ -172,9 +178,17 @@ export function renderDashboard(root: HTMLElement, status: RuntimeStatus): void 
     const systemButton = addButton(network, systemAction, systemLabel, systemLabel);
     systemButton.disabled = !status.enabled || status.components.daemon !== "running" || migrationRequired || awaitingEnable;
     appendText(network, "p", t(
-      "Redirects Android port-53 queries to the Tailscale resolver. Turn Android Private DNS off; apps with built-in DoH bypass this.",
-      "将 Android 的 53 端口查询重定向到 Tailscale 解析器。请关闭 Android 私人 DNS；内置 DoH 的应用会绕过此设置。",
+      "Redirects Android port-53 queries to the Tailscale resolver. Apps with built-in DoH bypass this.",
+      "将 Android 的 53 端口查询重定向到 Tailscale 解析器。内置 DoH 的应用会绕过此设置。",
     ), "notice");
+    if (status.systemDns.privateDns === "hostname") {
+      appendText(network, "p", t(
+        "Android Private DNS is set to a specific provider. That encrypted DNS bypasses the redirect, so Tailscale names will not resolve in most apps.",
+        "Android 私人 DNS 已设为指定提供商。该加密 DNS 会绕过重定向，大多数应用将无法解析 Tailscale 名称。",
+      ), "notice");
+      addButton(network, "private-dns-off", t("Turn Android Private DNS off", "关闭 Android 私人 DNS"),
+        t("Switch Android Private DNS off", "关闭 Android 私人 DNS"));
+    }
     if (status.systemDns.enabled && !status.systemDns.applied) {
       appendText(network, "p", t(
         "System-wide DNS is enabled but not applied while the daemon is stopped.",

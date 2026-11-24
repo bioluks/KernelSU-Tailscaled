@@ -47,6 +47,8 @@ public final class ModuleSettingsActivity extends Activity {
     private Switch acceptDns;
     private Switch systemDns;
     private TextView systemDnsNotApplied;
+    private TextView privateDnsState;
+    private Button privateDnsOff;
     private TextView dnsBlocked;
     private LinearLayout systemDnsCard;
     private TextView runtimeFacts;
@@ -222,6 +224,9 @@ public final class ModuleSettingsActivity extends Activity {
                     wanted ? R.string.module_system_dns_enabled : R.string.module_system_dns_disabled);
         });
         systemDnsNotApplied = body(systemDnsCard, getString(R.string.module_system_dns_not_applied));
+        privateDnsState = body(systemDnsCard, "");
+        privateDnsOff = button(systemDnsCard, R.string.private_dns_turn_off, view -> confirm(R.string.private_dns_explain,
+                () -> mutate("private-dns-off", R.string.private_dns_done)));
     }
 
     private void addUpdates() {
@@ -278,6 +283,11 @@ public final class ModuleSettingsActivity extends Activity {
         systemDnsCard.setVisibility(s.hasSystemDns ? View.VISIBLE : View.GONE);
         systemDns.setChecked(s.systemDnsEnabled);
         systemDnsNotApplied.setVisibility(s.systemDnsEnabled && !s.systemDnsApplied ? View.VISIBLE : View.GONE);
+        int privateText = "hostname".equals(s.privateDns) ? R.string.private_dns_state_strict
+                : "off".equals(s.privateDns) ? R.string.private_dns_state_off : R.string.private_dns_state_auto;
+        privateDnsState.setText(getString(R.string.private_dns_state, getString(privateText)));
+        privateDnsState.setVisibility(s.privateDns == null ? View.GONE : View.VISIBLE);
+        privateDnsOff.setVisibility(s.systemDnsEnabled && "hostname".equals(s.privateDns) ? View.VISIBLE : View.GONE);
         runtimeFacts.setText(getString(R.string.module_runtime_facts, orUnknown(s.activeVersion),
                 orNone(s.stagedVersion), orNone(s.previousVersion)));
         stagedNote.setVisibility(s.stagedVersion == null ? View.GONE : View.VISIBLE);

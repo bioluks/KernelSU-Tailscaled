@@ -23,7 +23,8 @@ export type ModuleAction =
   | "enable-dns"
   | "disable-dns"
   | "enable-system-dns"
-  | "disable-system-dns";
+  | "disable-system-dns"
+  | "private-dns-off";
 export interface CommandResult {
   stdout: string;
   stderr: string;
@@ -48,6 +49,7 @@ const ACTIONS: ReadonlySet<string> = new Set([
   "disable-dns",
   "enable-system-dns",
   "disable-system-dns",
+  "private-dns-off",
   "engine-status", "engine-check", "engine-prepare", "engine-apply",
 ]);
 

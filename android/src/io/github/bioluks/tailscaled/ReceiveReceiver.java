@@ -16,6 +16,9 @@ public final class ReceiveReceiver extends BroadcastReceiver {
         if (name == null || name.isEmpty() || name.length() > 255 || name.contains("/")
                 || name.contains("\\") || name.matches("(?s).*[\\p{Cntrl}].*")) return;
         Context context = AppLocale.wrap(base);
+        TransferHistory.add(context, TransferHistory.Kind.RECEIVED, name, null, null);
+        android.content.SharedPreferences preferences = context.getSharedPreferences("companion", Context.MODE_PRIVATE);
+        preferences.edit().putLong("transferRevision", preferences.getLong("transferRevision", 0) + 1).apply();
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel("received",
                 context.getString(R.string.receive_channel), NotificationManager.IMPORTANCE_DEFAULT));

@@ -93,8 +93,12 @@ describe("parseRuntimeStatus", () => {
   });
 
   it("parses opt-in system-wide DNS state and tolerates older status", () => {
-    expect(parseRuntimeStatus(JSON.stringify(running)).systemDns).toEqual({ enabled: false, applied: false });
-    expect(parseRuntimeStatus(JSON.stringify(degraded)).systemDns).toEqual({ enabled: true, applied: false });
+    expect(parseRuntimeStatus(JSON.stringify(running)).systemDns).toEqual({ enabled: false, applied: false, privateDns: null });
+    expect(parseRuntimeStatus(JSON.stringify(degraded)).systemDns).toEqual({ enabled: true, applied: false, privateDns: null });
+    const strict = { ...structuredClone(running), systemDns: { enabled: true, applied: true, privateDns: "hostname" } };
+    expect(parseRuntimeStatus(JSON.stringify(strict)).systemDns?.privateDns).toBe("hostname");
+    const unknownMode = { ...structuredClone(running), systemDns: { enabled: true, applied: true, privateDns: "dot" } };
+    expect(() => parseRuntimeStatus(JSON.stringify(unknownMode))).toThrow("Invalid runtime status");
     const legacy = structuredClone(running);
     delete (legacy as { systemDns?: unknown }).systemDns;
     expect(parseRuntimeStatus(JSON.stringify(legacy)).systemDns).toBeNull();

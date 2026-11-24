@@ -90,12 +90,26 @@ describe("schema 2 dashboard", () => {
     const root = document.createElement("div");
     renderDashboard(root, parseRuntimeStatus(JSON.stringify(degraded)));
     expect(root.querySelector("[data-action=disable-system-dns]")).not.toBeNull();
-    expect(root.textContent).toContain("Turn Android Private DNS off");
     expect(root.textContent).toContain("enabled but not applied");
+    expect(root.querySelector("[data-action=private-dns-off]")).toBeNull();
     const idle = document.createElement("div");
     renderDashboard(idle, parseRuntimeStatus(JSON.stringify(running)));
     expect(idle.querySelector("[data-action=enable-system-dns]")?.textContent)
       .toContain("Use Tailscale DNS for all apps");
+  });
+
+  it("offers to switch strict Private DNS off and expands diagnostic details", () => {
+    const status = {
+      ...structuredClone(running),
+      systemDns: { enabled: true, applied: true, privateDns: "hostname" },
+      diagnostics: [{ code: "system-dns-other-module", severity: "warning",
+        message: "Another DNS redirect is configured on this device",
+        detail: "Chain TS_DNS_ENFORCE: dormant, nothing jumps to it yet\n  created by /data/adb/service.d/afwall-chains.sh" }],
+    };
+    const root = document.createElement("div");
+    renderDashboard(root, parseRuntimeStatus(JSON.stringify(status)));
+    expect(root.querySelector("[data-action=private-dns-off]")).not.toBeNull();
+    expect(root.querySelector(".diagnostic details pre")?.textContent).toContain("afwall-chains.sh");
   });
 });
 

@@ -120,6 +120,7 @@ async function handleAction(action: string): Promise<void> {
   if (action === 'engine-apply' && !window.confirm(t("Apply the verified Tailscale engine? The service will restart briefly. Your login and settings will be retained.", "应用已校验的 Tailscale 引擎？服务会短暂重启，登录与配置保留。"))) return;
   if (action === "migrate-legacy" && !window.confirm(t("Migrate the legacy module identity?\nThe old module must be disabled or removed, both runtimes stopped, and no new identity present. Old files will be kept. Enable separately after migration.", "迁移旧模块身份？\n旧模块须已禁用或移除，且旧、新运行时均已停止；新身份必须不存在。旧文件将保留，迁移后等待单独启用。"))) return;
   if (action === "apply-staged" && !window.confirm(t("Apply the staged runtime?\nThe current runtime will stop and switch to the verified staged version. This updates the runtime, not the current manager WebUI, and does not reboot the device.", "应用暂存运行时？\n当前运行时将停止并切换至已验证的暂存版本。此操作更新运行时，不更新当前管理器中的 WebUI，也不重启设备。"))) return;
+  if (action === "private-dns-off" && !window.confirm(t("Turn Android Private DNS off?\nAndroid then uses plain DNS, which system-wide DNS sends to your tailnet resolver. You can turn it back on in Android Settings → Network → Private DNS.", "关闭 Android 私人 DNS？\n之后 Android 使用普通 DNS，系统级 DNS 会将其发送到你的 tailnet 解析器。可在 Android 设置 → 网络 → 私人 DNS 中重新开启。"))) return;
   setBusy(true);
   announce(t("Working…", "处理中"));
   try {
@@ -188,12 +189,14 @@ async function handleAction(action: string): Promise<void> {
         }
         break;
       case "enable-system-dns":
-      case "disable-system-dns": {
+      case "disable-system-dns":
+      case "private-dns-off": {
         await execute(action);
         await refreshStatus();
         const message = action === "enable-system-dns"
           ? t("System-wide DNS enabled", "系统级 DNS 已启用")
-          : t("System-wide DNS disabled", "系统级 DNS 已停用");
+          : action === "disable-system-dns" ? t("System-wide DNS disabled", "系统级 DNS 已停用")
+          : t("Android Private DNS is off", "Android 私人 DNS 已关闭");
         announce(message);
         toast(message);
         break;

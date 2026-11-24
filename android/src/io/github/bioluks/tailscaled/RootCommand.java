@@ -40,7 +40,7 @@ final class RootCommand {
     private static final Set<String> ACTIONS = new HashSet<>(Arrays.asList(
             "status-json", "enable", "disable", "restart", "logs", "diagnostics", "web-restart",
             "taildrop-targets", "taildrop-save-dir", "login-server",
-            "enable-dns", "disable-dns", "enable-system-dns", "disable-system-dns",
+            "enable-dns", "disable-dns", "enable-system-dns", "disable-system-dns", "private-dns-off",
             "migration-status", "migrate-legacy", "apply-staged",
             "engine-status", "engine-check", "engine-prepare", "engine-apply"));
 

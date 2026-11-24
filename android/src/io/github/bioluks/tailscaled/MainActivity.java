@@ -23,11 +23,14 @@ public final class MainActivity extends Activity {
     private TextView subtitle;
     private LinearLayout facts;
     private LinearLayout alerts;
-    private TextView result;
+    private LinearLayout historySection;
+    private LinearLayout historyList;
+    private Button historyAll;
+    private static final int HISTORY_PREVIEW = 5;
     private boolean busy;
     private String displayedLanguage;
     private final SharedPreferences.OnSharedPreferenceChangeListener transferListener = (preferences, key) -> {
-        if ("transferRevision".equals(key)) showLastTransfer();
+        if ("transferRevision".equals(key)) showHistory();
     };
 
     @Override protected void attachBaseContext(Context base) { super.attachBaseContext(AppLocale.wrap(base)); }
@@ -68,11 +71,27 @@ public final class MainActivity extends Activity {
         toolRow(content, R.string.settings_title, R.string.main_settings_summary,
                 () -> startActivity(new Intent(this, SettingsActivity.class)));
 
-        result = Ui.text(this, "", 14, R.color.muted);
-        result.setTextIsSelectable(true);
-        result.setPadding(dp(4), dp(8), dp(4), 0);
-        content.addView(result, new LinearLayout.LayoutParams(-1, -2));
-        showLastTransfer();
+        historySection = new LinearLayout(this);
+        historySection.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout historyHeader = new LinearLayout(this);
+        historyHeader.setGravity(Gravity.CENTER_VERTICAL);
+        historyHeader.addView(Ui.heading(this, R.string.history_title), new LinearLayout.LayoutParams(0, -2, 1));
+        historyAll = new Button(this, null, android.R.attr.borderlessButtonStyle);
+        historyAll.setText(R.string.history_show_all);
+        historyAll.setAllCaps(false);
+        historyAll.setTextColor(getColor(R.color.accent));
+        historyAll.setMinWidth(0);
+        historyAll.setMinimumWidth(0);
+        historyAll.setOnClickListener(v -> startActivity(new Intent(this, HistoryActivity.class)));
+        historyHeader.addView(historyAll, new LinearLayout.LayoutParams(-2, dp(48)));
+        historySection.addView(historyHeader, new LinearLayout.LayoutParams(-1, -2));
+        historyList = new LinearLayout(this);
+        historyList.setOrientation(LinearLayout.VERTICAL);
+        historyList.setBackground(Ui.card(this, 16, true));
+        historyList.setPadding(0, dp(4), 0, dp(4));
+        historySection.addView(historyList, new LinearLayout.LayoutParams(-1, -2));
+        content.addView(historySection, new LinearLayout.LayoutParams(-1, -2));
+        showHistory();
         load("status-json");
     }
 
@@ -155,18 +174,54 @@ public final class MainActivity extends Activity {
         facts.addView(row, new LinearLayout.LayoutParams(-1, -2));
     }
 
+    /** Warning/error callout; diagnostics with detail or an action open an explanation dialog. */
     private void alert(ModuleStatus.Diagnostic item) {
-        TextView text = Ui.text(this, item.message, 14, R.color.on_surface);
         boolean error = "error".equals(item.severity);
+        boolean privateDns = "private-dns-strict".equals(item.code);
+        boolean expandable = item.detail != null || privateDns;
+        TextView text = Ui.text(this, expandable ? item.message + "  ›" : item.message, 14, R.color.on_surface);
         GradientDrawable shape = new GradientDrawable();
         shape.setCornerRadius(dp(12));
         shape.setColor(getColor(error ? R.color.error_surface : R.color.warning_surface));
         text.setBackground(shape);
         text.setPadding(dp(12), dp(8), dp(12), dp(8));
         text.setContentDescription(getString(error ? R.string.status_error : R.string.status_warning) + ": " + item.message);
+        if (expandable) {
+            text.setFocusable(true);
+            text.setOnClickListener(v -> explain(item, privateDns));
+        }
         LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(-1, -2);
         layout.topMargin = dp(8);
         alerts.addView(text, layout);
+    }
+
+    private void explain(ModuleStatus.Diagnostic item, boolean privateDns) {
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+        if ("system-dns-other-module".equals(item.code)) dialog.setTitle(R.string.dns_conflict_title);
+        else if (privateDns) dialog.setTitle(R.string.private_dns_title);
+        else dialog.setTitle(item.message);
+        if ("system-dns-other-module".equals(item.code)) {
+            TextView body = Ui.text(this, getString(R.string.dns_conflict_explain), 14, R.color.on_surface);
+            TextView detail = Ui.text(this, item.detail == null ? "" : item.detail, 12, R.color.muted);
+            detail.setTypeface(Typeface.MONOSPACE);
+            detail.setTextIsSelectable(true);
+            detail.setPadding(0, dp(12), 0, 0);
+            LinearLayout box = new LinearLayout(this);
+            box.setOrientation(LinearLayout.VERTICAL);
+            box.setPadding(dp(24), dp(8), dp(24), 0);
+            box.addView(body);
+            box.addView(detail);
+            ScrollView scroll = new ScrollView(this);
+            scroll.addView(box);
+            dialog.setView(scroll).setPositiveButton(android.R.string.ok, null);
+        } else if (privateDns) {
+            dialog.setMessage(R.string.private_dns_explain)
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.private_dns_turn_off, (d, w) -> load("private-dns-off"));
+        } else {
+            dialog.setMessage(item.detail).setPositiveButton(android.R.string.ok, null);
+        }
+        dialog.show();
     }
 
     private void actionButton(LinearLayout row, int label, Runnable action) {
@@ -211,10 +266,22 @@ public final class MainActivity extends Activity {
         controls.add(row);
     }
 
-    private void showLastTransfer() {
-        String last = getSharedPreferences("companion", 0).getString("lastTransfer", "");
-        result.setText(last);
-        result.setVisibility(last.isEmpty() ? View.GONE : View.VISIBLE);
+    /** Newest transfers on the landing page; the full list and Clear live in HistoryActivity. */
+    private void showHistory() {
+        historyList.removeAllViews();
+        boolean enabled = TransferHistory.enabled(this);
+        java.util.List<TransferHistory.Entry> entries = enabled ? TransferHistory.load(this) : java.util.Collections.emptyList();
+        historySection.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (!enabled) return;
+        if (entries.isEmpty()) {
+            TextView empty = Ui.text(this, getString(R.string.history_empty), 14, R.color.muted);
+            empty.setPadding(dp(16), dp(14), dp(16), dp(14));
+            historyList.addView(empty, new LinearLayout.LayoutParams(-1, -2));
+        }
+        for (int i = 0; i < Math.min(HISTORY_PREVIEW, entries.size()); i++) {
+            historyList.addView(HistoryActivity.row(this, entries.get(i)), new LinearLayout.LayoutParams(-1, -2));
+        }
+        historyAll.setVisibility(entries.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     private int dp(int value) { return Ui.dp(this, value); }
@@ -307,7 +374,6 @@ public final class MainActivity extends Activity {
 
         alerts.removeAllViews();
         for (ModuleStatus.Diagnostic item : s.diagnostics) if (!"info".equals(item.severity)) alert(item);
-        showLastTransfer();
     }
 
     /** Starts the loopback panel when needed, then opens it in-app or in the browser per Settings. */
@@ -381,7 +447,7 @@ public final class MainActivity extends Activity {
         super.onStart();
         SharedPreferences preferences = getSharedPreferences("companion", 0);
         preferences.registerOnSharedPreferenceChangeListener(transferListener);
-        showLastTransfer();
+        showHistory();
     }
     @Override protected void onStop() {
         getSharedPreferences("companion", 0).unregisterOnSharedPreferenceChangeListener(transferListener);

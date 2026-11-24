@@ -123,6 +123,7 @@ public final class SendService extends Service {
     private void transfer(ArrayList<Uri> files, String label) {
         String title;
         String detail = label;
+        String inFlight = null;
         byte[] buffer = new byte[65536];
         try {
             for (int index = 0; index < files.size(); index++) {
@@ -142,6 +143,7 @@ public final class SendService extends Service {
                     }
                 }
                 name = safeName(name);
+                inFlight = name;
                 preparingFile = localized.getString(R.string.transfer_file, index + 1, files.size(), name);
                 sourceCancellation.throwIfCanceled();
                 AssetFileDescriptor descriptor = getContentResolver().openAssetFileDescriptor(uri, "r", sourceCancellation);
@@ -177,6 +179,8 @@ public final class SendService extends Service {
                 int exit = process.waitFor();
                 String message = output.result();
                 if (exit != 0) throw new IOException(message.isEmpty() ? "Taildrop send failed (" + exit + ")" : message);
+                TransferHistory.add(this, TransferHistory.Kind.SENT, name, label, null);
+                inFlight = null;
                 rootPid = null;
                 process = null;
             }
@@ -185,6 +189,9 @@ public final class SendService extends Service {
         } catch (Exception e) {
             title = localized.getString(cancelled ? R.string.cancelled : R.string.failed);
             detail = cancelled ? label : String.valueOf(e.getMessage());
+            TransferHistory.add(this, cancelled ? TransferHistory.Kind.CANCELLED : TransferHistory.Kind.FAILED,
+                    inFlight == null ? localized.getString(R.string.history_unnamed) : inFlight, label,
+                    cancelled ? null : detail);
         } finally {
             closeSource();
             if (process != null) { RootCommand.cancel(rootPid); process.destroy(); }
@@ -204,7 +211,7 @@ public final class SendService extends Service {
                     .setContentIntent(open).setAutoCancel(true).setVisibility(Notification.VISIBILITY_PRIVATE).build());
             active = false;
             SharedPreferences preferences = getSharedPreferences("companion", 0);
-            preferences.edit().putString("lastTransfer", completedTitle + "\n" + completedDetail)
+            preferences.edit().remove("lastTransfer")
                     .putLong("transferRevision", preferences.getLong("transferRevision", 0) + 1).apply();
             stopSelfResult(latestStartId);
         });

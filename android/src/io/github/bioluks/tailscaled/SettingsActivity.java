@@ -48,6 +48,16 @@ public final class SettingsActivity extends Activity {
         languageRow.setOnClickListener(view -> chooseLanguage());
         addSwitch(content, "confirmSend", R.string.settings_confirm_send, R.string.settings_confirm_summary);
         addSwitch(content, PANEL_EXTERNAL, R.string.settings_panel_external, R.string.settings_panel_external_summary);
+        Switch history = addSwitch(content, TransferHistory.ENABLED, true,
+                R.string.settings_history, R.string.settings_history_summary);
+        history.setOnCheckedChangeListener((button, checked) -> {
+            getSharedPreferences("companion", MODE_PRIVATE).edit().putBoolean(TransferHistory.ENABLED, checked).apply();
+            if (!checked && !TransferHistory.load(this).isEmpty()) {
+                new AlertDialog.Builder(this).setMessage(R.string.settings_history_clear_prompt)
+                        .setNegativeButton(R.string.settings_history_keep, null)
+                        .setPositiveButton(R.string.history_clear, (d, w) -> TransferHistory.clear(this)).show();
+            }
+        });
 
         content.addView(Ui.heading(this, R.string.settings_notifications));
         notificationSummary = Ui.text(this, "", 14, R.color.muted);
@@ -94,7 +104,11 @@ public final class SettingsActivity extends Activity {
         return row;
     }
 
-    private void addSwitch(LinearLayout content, String key, int title, int summaryText) {
+    private Switch addSwitch(LinearLayout content, String key, int title, int summaryText) {
+        return addSwitch(content, key, false, title, summaryText);
+    }
+
+    private Switch addSwitch(LinearLayout content, String key, boolean fallback, int title, int summaryText) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 16));
@@ -106,7 +120,7 @@ public final class SettingsActivity extends Activity {
         confirmation.setSingleLine(false);
         confirmation.setSwitchPadding(Ui.dp(this, 16));
         confirmation.setMinimumHeight(Ui.dp(this, 48));
-        confirmation.setChecked(getSharedPreferences("companion", MODE_PRIVATE).getBoolean(key, false));
+        confirmation.setChecked(getSharedPreferences("companion", MODE_PRIVATE).getBoolean(key, fallback));
         confirmation.setContentDescription(getString(title) + ". " + getString(summaryText));
         confirmation.setOnCheckedChangeListener((button, checked) ->
                 getSharedPreferences("companion", MODE_PRIVATE).edit().putBoolean(key, checked).apply());
@@ -120,6 +134,7 @@ public final class SettingsActivity extends Activity {
         LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(-1, -2);
         layout.bottomMargin = Ui.dp(this, 12);
         content.addView(card, layout);
+        return confirmation;
     }
 
     private void chooseLanguage() {

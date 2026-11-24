@@ -253,6 +253,11 @@ not create a VPN, second daemon or separate account connection.
   uninstalling the companion does not stop automatic delivery. No app polling,
   boot service or second receiver runs. Notifications describe successful saves,
   not incoming-transfer progress.
+- **Transfer history** on the landing page lists sent, received, failed and
+  cancelled files with peer and time (newest 100, stored only in the app).
+  Received files are recorded when the module saves them, even with
+  notifications off. **Show all** has **Clear**; **Settings → Transfer
+  history** (on by default) stops recording and offers to clear stored entries.
 
 The APK is optional, separately installed, and never silently installed by the
 module. It has no analytics, cloud service, auto-updater or broad storage access.
@@ -325,11 +330,15 @@ Android's `netd` resolver itself runs as root and cannot be excluded by uid.
 Loopback and the resolver itself are excluded; LAN, carrier and public
 resolvers are overridden, which is the point of enabling it.
 IPv6 uses NAT when the kernel supports it and otherwise rejects port 53 so
-queries fall back to IPv4. Turn Android Private DNS off; apps with
-built-in DoH bypass the redirect. Rules are removed when the daemon stops, the
-feature is disabled, or the module is uninstalled, and nothing is touched while
-the feature is off. Other DNS modules are not modified and should not be
-combined with this option.
+queries fall back to IPv4. Android Private DNS in **Automatic** mode is
+compatible (it falls back to port 53 when the resolver lacks DoT), but a
+**specific provider** (strict DoT) bypasses the redirect; the status reports
+this as `private-dns-strict` and `private-dns-off` switches it off on explicit
+request. Apps with built-in DoH bypass the redirect. Rules are removed when the
+daemon stops, the feature is disabled, or the module is uninstalled, and nothing
+is touched while the feature is off. Other DNS modules are never modified; when
+one has its own port-53 chain, `system-dns-other-module` names the chain, the
+boot script or module creating it, its rules, and whether it is active.
 
 Fresh identities initialize a hostname from the Android device name, falling
 back to product/model, and begin with DNS/subnet acceptance and exit routing off.

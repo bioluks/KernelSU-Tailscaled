@@ -6,6 +6,7 @@ export interface Diagnostic {
   code: string;
   severity: "info" | "warning" | "error";
   message: string;
+  detail: string | null;
 }
 
 export interface RuntimeComponents {
@@ -26,7 +27,7 @@ export interface RuntimeStatus {
   ipv4: string | null;
   acceptRoutes: boolean | null;
   acceptDNS: boolean | null;
-  systemDns: { enabled: boolean; applied: boolean } | null;
+  systemDns: { enabled: boolean; applied: boolean; privateDns: "off" | "opportunistic" | "hostname" | null } | null;
   exitNode: string | null;
   controlURL: string | null;
   moduleVersion: string;
@@ -81,7 +82,8 @@ export function parseRuntimeStatus(input: string): RuntimeStatus {
     const lifecycle = raw.lifecycle as Lifecycle;
     const diagnostics: Diagnostic[] = raw.diagnostics.map((item: unknown) => {
       if (!isObject(item) || !["info", "warning", "error"].includes(String(item.severity))) throw new Error("Invalid runtime status");
-      return { code: requireString(item, "code"), severity: item.severity as Diagnostic["severity"], message: requireString(item, "message") };
+      const detail = item.detail === undefined ? null : requireString(item, "detail");
+      return { code: requireString(item, "code"), severity: item.severity as Diagnostic["severity"], message: requireString(item, "message"), detail };
     });
     const runtime = {
       activeVersion: nullableString(raw.runtime.activeVersion),
@@ -145,13 +147,17 @@ export function parseRuntimeStatus(input: string): RuntimeStatus {
       if (raw.prefs.ControlURL !== undefined) controlURL = nullableString(raw.prefs.ControlURL);
     }
 
-    let systemDns: { enabled: boolean; applied: boolean } | null = null;
+    let systemDns: RuntimeStatus["systemDns"] = null;
     if (raw.systemDns !== undefined) {
       if (!isObject(raw.systemDns) || typeof raw.systemDns.enabled !== "boolean"
           || typeof raw.systemDns.applied !== "boolean") {
         throw new Error("Invalid runtime status");
       }
-      systemDns = { enabled: raw.systemDns.enabled, applied: raw.systemDns.applied };
+      const privateDns = raw.systemDns.privateDns;
+      if (privateDns !== undefined && privateDns !== "off" && privateDns !== "opportunistic" && privateDns !== "hostname") {
+        throw new Error("Invalid runtime status");
+      }
+      systemDns = { enabled: raw.systemDns.enabled, applied: raw.systemDns.applied, privateDns: privateDns ?? null };
     }
 
     const webListen = raw.webListen ?? "127.0.0.1:8088";

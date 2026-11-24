@@ -99,13 +99,76 @@ system_dns_active_conflict() {
 
 # A dormant DNS module: a foreign chain whose own rules redirect port 53.
 system_dns_other_module() {
+  system_dns_foreign_rules | awk '{print $2}' | sort -u | head -n 1
+}
+
+# Every non-owned rule in a user chain that touches port 53 ("-A CHAIN ...").
+system_dns_foreign_rules() {
   {
     iptables -t nat -S 2>/dev/null
     ip6tables -t nat -S 2>/dev/null
     ip6tables -S 2>/dev/null
   } | grep -E -- '--dport 53' | grep -v -E -- 'KST_SYSDNS' |
-    awk '$2 !~ /^(OUTPUT|PREROUTING|POSTROUTING|INPUT|FORWARD)$/ {print $2}' |
-    sort -u | head -n 1
+    awk '$1 == "-A" && $2 !~ /^(OUTPUT|PREROUTING|POSTROUTING|INPUT|FORWARD)$/'
+}
+
+# Human-readable report for the other-module warning: each foreign chain, its
+# port-53 rules, whether a builtin chain jumps to it (active) or not (dormant),
+# and which boot script or module mentions it. Read-only; never edits rules.
+system_dns_other_module_report() {
+  local rules chains chain jumps owners all adb
+  rules=$(system_dns_foreign_rules)
+  [ -n "$rules" ] || return 0
+  chains=$(printf '%s\n' "$rules" | awk '{print $2}' | sort -u)
+  all=$({ iptables -t nat -S; ip6tables -t nat -S; ip6tables -S; iptables -S; } 2>/dev/null)
+  adb=${KST_ADB_ROOT:-/data/adb}
+  for chain in $chains; do
+    jumps=$(printf '%s\n' "$all" | grep -E -- "^-A (OUTPUT|PREROUTING|INPUT|FORWARD|POSTROUTING) .*-j $chain( |\$)" | head -n 3)
+    owners=$(grep -l -s -- "$chain" "$adb"/service.d/* "$adb"/post-fs-data.d/* \
+      "$adb"/modules/*/service.sh "$adb"/modules/*/post-fs-data.sh 2>/dev/null |
+      grep -v '/kernelsu-tailscaled/' | head -n 3)
+    if [ -n "$jumps" ]; then
+      printf 'Chain %s: ACTIVE, traffic is redirected now\n' "$chain"
+    else
+      printf 'Chain %s: dormant, nothing jumps to it yet\n' "$chain"
+    fi
+    if [ -n "$owners" ]; then
+      printf '%s\n' "$owners" | sed 's/^/  created by /'
+    else
+      printf '  created by an unknown script\n'
+    fi
+    printf '%s\n' "$rules" | awk -v c="$chain" '$2 == c' | sed 's/^-A [^ ]* /  rule: /' | head -n 4
+    [ -z "$jumps" ] || printf '%s\n' "$jumps" | sed 's/^/  jump: /'
+  done
+}
+
+# Android Private DNS: "hostname" (strict DoT to a named server) bypasses the
+# port-53 redirect entirely; "opportunistic" falls back to port 53 when the
+# resolver does not speak DoT, so only strict mode defeats system-wide DNS.
+system_dns_private_mode() {
+  local mode
+  mode=$(bounded 2 settings get global private_dns_mode 2>/dev/null) || mode=
+  case "$mode" in
+    off|opportunistic|hostname) printf '%s\n' "$mode" ;;
+    *) printf 'opportunistic\n' ;;  # unset means the Android default
+  esac
+}
+
+system_dns_private_host() {
+  local host
+  host=$(bounded 2 settings get global private_dns_specifier 2>/dev/null) || host=
+  [ "$host" = null ] || printf '%s\n' "$host"
+}
+
+# Explicit user action only: switch Private DNS off so strict DoT cannot bypass
+# the redirect. Never called automatically.
+system_dns_private_off() {
+  bounded 3 settings put global private_dns_mode off >/dev/null 2>&1 || {
+    echo 'Could not change Android Private DNS' >&2; return 1
+  }
+  [ "$(system_dns_private_mode)" = off ] || { echo 'Android Private DNS did not switch off' >&2; return 1; }
+  log INFO 'Android Private DNS switched off on request'
+  echo 'Android Private DNS is off'
 }
 
 system_dns_remove_all() {

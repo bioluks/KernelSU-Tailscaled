@@ -8,9 +8,14 @@ import org.json.JSONObject;
 final class ModuleStatus {
     /** One status-json diagnostic; severity is info, warning or error. */
     static final class Diagnostic {
+        final String code;
         final String severity;
         final String message;
-        Diagnostic(String severity, String message) { this.severity = severity; this.message = message; }
+        /** Optional multi-line explanation (for example which chain/script). */
+        final String detail;
+        Diagnostic(String code, String severity, String message, String detail) {
+            this.code = code; this.severity = severity; this.message = message; this.detail = detail;
+        }
     }
 
     final boolean enabled;
@@ -26,6 +31,8 @@ final class ModuleStatus {
     final boolean hasSystemDns;
     final boolean systemDnsEnabled;
     final boolean systemDnsApplied;
+    /** Android Private DNS mode: off, opportunistic, hostname, or null when unreported. */
+    final String privateDns;
     final String taildropDirectory;
     final boolean taildropReceiverRunning;
     final String moduleVersion;
@@ -75,6 +82,7 @@ final class ModuleStatus {
         hasSystemDns = systemDns != null;
         systemDnsEnabled = systemDns != null && systemDns.optBoolean("enabled");
         systemDnsApplied = systemDns != null && systemDns.optBoolean("applied");
+        privateDns = text(systemDns, "privateDns");
         JSONObject taildrop = state.getJSONObject("taildrop");
         taildropDirectory = taildrop.getString("directory");
         taildropReceiverRunning = "running".equals(taildrop.optString("receiver"));
@@ -91,7 +99,8 @@ final class ModuleStatus {
             String code = item.optString("code");
             required |= "migration-required".equals(code);
             awaiting |= "migration-awaiting-enable".equals(code);
-            list.add(new Diagnostic(item.optString("severity", "info"), item.optString("message")));
+            list.add(new Diagnostic(code, item.optString("severity", "info"), item.optString("message"),
+                    text(item, "detail")));
         }
         diagnostics = java.util.Collections.unmodifiableList(list);
         migrationRequired = required;

@@ -171,7 +171,15 @@ elif name == 'nc':
     except OSError:
         sys.exit(1)
 elif name == 'settings':
-    print((root / 'device-name').read_text() if (root / 'device-name').exists() else 'Fixture Phone')
+    # settings get|put global KEY [VALUE]; private_dns_* are file-backed for system-DNS tests.
+    if len(args) >= 3 and args[2].startswith('private_dns_'):
+        store = root / args[2]
+        if args[0] == 'put':
+            store.write_text(args[3])
+        else:
+            print(store.read_text() if store.exists() else 'null')
+    else:
+        print((root / 'device-name').read_text() if (root / 'device-name').exists() else 'Fixture Phone')
 elif name == 'getprop':
     if args == ['ro.build.version.sdk']:
         print('36' if (root / 'android-runtime').exists() else '')

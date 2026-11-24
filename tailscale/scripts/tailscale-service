@@ -182,8 +182,13 @@ EOF
   fi
     if system_dns_enabled; then
       if system_dns_applied; then
-        diagnostic system-dns-active info 'All app DNS queries use the Tailscale resolver; keep Android Private DNS off'
-        [ -z "$(system_dns_other_module)" ] || diagnostic system-dns-other-module warning 'Another DNS redirect module is installed; do not enable both'
+        diagnostic system-dns-active info 'All app DNS queries use the Tailscale resolver'
+        [ -z "$(system_dns_other_module)" ] || diagnostic system-dns-other-module warning \
+          'Another DNS redirect is configured on this device' "$(system_dns_other_module_report)"
+        if [ "$(system_dns_private_mode)" = hostname ]; then
+          diagnostic private-dns-strict warning \
+            "Android Private DNS is set to $(system_dns_private_host); it bypasses system-wide DNS"
+        fi
       else
         diagnostic system-dns-inactive warning 'System-wide DNS is enabled but not applied; the daemon must be running'
       fi
@@ -224,7 +229,8 @@ EOF
   printf ',"previousVersion":'; version_json "$TS_DIR/previous"
   if system_dns_enabled; then sd_enabled=true; else sd_enabled=false; fi
   if system_dns_applied; then sd_applied=true; else sd_applied=false; fi
-  printf '},"systemDns":{"enabled":%s,"applied":%s},"tailscale":%s,"prefs":%s,"diagnostics":[%s]}\n' "$sd_enabled" "$sd_applied" "$tailscale_status" "$tailscale_prefs" "$DIAGNOSTICS"
+  printf '},"systemDns":{"enabled":%s,"applied":%s,"privateDns":"%s"},' "$sd_enabled" "$sd_applied" "$(system_dns_private_mode)"
+  printf '"tailscale":%s,"prefs":%s,"diagnostics":[%s]}\n' "$tailscale_status" "$tailscale_prefs" "$DIAGNOSTICS"
 }
 
 runtime_logs() {
@@ -315,10 +321,11 @@ case "$1" in
   enable-dns) with_control_lock dns_set true ;;
   enable-system-dns) with_control_lock system_dns_enable ;;
   disable-system-dns) with_control_lock system_dns_disable ;;
+  private-dns-off) with_control_lock system_dns_private_off ;;
   disable-dns) with_control_lock dns_set false ;;
   toggle-dns) with_control_lock dns_toggle ;;
   taildrop-save-dir) with_control_lock taildrop_save_directory ;;
   taildrop-targets) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_targets ;;
   taildrop-send) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_send ;;
-  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|enable-dns|disable-dns|toggle-dns|enable-system-dns|disable-system-dns|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
+  *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|enable-dns|disable-dns|toggle-dns|enable-system-dns|disable-system-dns|private-dns-off|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
 esac

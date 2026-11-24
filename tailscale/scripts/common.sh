@@ -372,9 +372,12 @@ set_lifecycle() {
   mv -f "$RUN_DIR/lifecycle.new" "$RUN_DIR/lifecycle"
 }
 
+# diagnostic CODE SEVERITY MESSAGE [DETAIL]; DETAIL is optional multi-line text.
 diagnostic() {
   [ -z "${DIAGNOSTICS:-}" ] || DIAGNOSTICS="$DIAGNOSTICS,"
-  DIAGNOSTICS="$DIAGNOSTICS{\"code\":\"$1\",\"severity\":\"$2\",\"message\":\"$(json_escape "$3")\"}"
+  DIAGNOSTICS="$DIAGNOSTICS{\"code\":\"$1\",\"severity\":\"$2\",\"message\":\"$(json_escape "$3")\""
+  [ -z "${4:-}" ] || DIAGNOSTICS="$DIAGNOSTICS,\"detail\":\"$(json_escape "$4")\""
+  DIAGNOSTICS="$DIAGNOSTICS}"
 }
 
 is_android_runtime() {

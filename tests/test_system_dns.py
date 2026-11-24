@@ -32,12 +32,16 @@ class SystemDnsTests(RuntimeHarness):
     def preload_netfilter(self, state):
         self.netfilter_state.write_text(json.dumps(state))
 
+    @staticmethod
+    def dns_state(status):
+        return status['systemDns']['enabled'], status['systemDns']['applied']
+
     def test_system_dns_is_opt_in_by_default(self):
         self.start()
 
         status = self.status()
 
-        self.assertEqual({'enabled': False, 'applied': False}, status['systemDns'])
+        self.assertEqual((False, False), self.dns_state(status))
         self.assert_absent()
         self.assertFalse((self.state / 'system-dns-enabled').exists())
 
@@ -72,7 +76,7 @@ class SystemDnsTests(RuntimeHarness):
         self.assertEqual(1, jumps.count('-p tcp --dport 53 -j KST_SYSDNS'))
         self.assertTrue((self.state / 'system-dns-enabled').exists())
         status = self.status()
-        self.assertEqual({'enabled': True, 'applied': True}, status['systemDns'])
+        self.assertEqual((True, True), self.dns_state(status))
         codes = {item['code']: item['severity'] for item in status['diagnostics']}
         self.assertEqual('info', codes['system-dns-active'])
 
@@ -80,7 +84,7 @@ class SystemDnsTests(RuntimeHarness):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assert_absent()
         self.assertFalse((self.state / 'system-dns-enabled').exists())
-        self.assertEqual({'enabled': False, 'applied': False}, self.status()['systemDns'])
+        self.assertEqual((False, False), self.dns_state(self.status()))
 
     def test_enable_is_idempotent_and_sets_accept_dns(self):
         (self.root / 'prefs.json').write_text(json.dumps({'Hostname': '', 'CorpDNS': False}))
@@ -104,13 +108,13 @@ class SystemDnsTests(RuntimeHarness):
         self.assertEqual(0, self.run_command('stop').returncode)
         self.assert_absent()
         self.assertTrue((self.state / 'system-dns-enabled').exists())
-        self.assertEqual({'enabled': True, 'applied': False}, self.status()['systemDns'])
+        self.assertEqual((True, False), self.dns_state(self.status()))
         codes = {item['code']: item['severity'] for item in self.status()['diagnostics']}
         self.assertEqual('warning', codes['system-dns-inactive'])
 
         self.start()
         self.assertTrue(self.rules())
-        self.assertEqual({'enabled': True, 'applied': True}, self.status()['systemDns'])
+        self.assertEqual((True, True), self.dns_state(self.status()))
 
     def test_ipv6_without_nat_rejects_port_53_instead_of_leaking(self):
         self.env['FAKE_IP6TABLES_NO_NAT'] = '1'
@@ -170,17 +174,51 @@ class SystemDnsTests(RuntimeHarness):
         self.assertTrue(any('-d 100.64.0.9' in rule and 'SNAT' in rule
                             for rule in self.rules('nat', 'POSTROUTING')))
 
-    def test_dormant_foreign_dns_chain_is_reported_after_enable(self):
+    def test_dormant_foreign_dns_chain_is_reported_with_owner_and_rules(self):
         self.preload_netfilter({'nat': {
             'TS_DNS_ENFORCE': ['-p udp --dport 53 -j DNAT --to-destination 100.64.0.3:53'],
         }})
+        service_d = self.root / 'adb/service.d'
+        service_d.mkdir(parents=True)
+        (service_d / 'afwall-chains.sh').write_text('iptables -t nat -N TS_DNS_ENFORCE\n')
+        self.env['KST_ADB_ROOT'] = str(self.root / 'adb')
         self.start()
 
         result = self.run_command('enable-system-dns')
         self.assertEqual(0, result.returncode, result.stderr)
 
-        codes = {item['code']: item['severity'] for item in self.status()['diagnostics']}
-        self.assertEqual('warning', codes['system-dns-other-module'])
+        found = {item['code']: item for item in self.status()['diagnostics']}
+        warning = found['system-dns-other-module']
+        self.assertEqual('warning', warning['severity'])
+        self.assertIn('Chain TS_DNS_ENFORCE: dormant', warning['detail'])
+        self.assertIn('created by ' + str(service_d / 'afwall-chains.sh'), warning['detail'])
+        self.assertIn('--to-destination 100.64.0.3:53', warning['detail'])
+
+    def test_strict_private_dns_is_flagged_and_can_be_switched_off(self):
+        (self.root / 'private_dns_mode').write_text('hostname')
+        (self.root / 'private_dns_specifier').write_text('dns.google')
+        self.start()
+        self.assertEqual(0, self.run_command('enable-system-dns').returncode)
+
+        status = self.status()
+        self.assertEqual('hostname', status['systemDns']['privateDns'])
+        found = {item['code']: item for item in status['diagnostics']}
+        self.assertIn('dns.google', found['private-dns-strict']['message'])
+
+        result = self.run_command('private-dns-off')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual('off', (self.root / 'private_dns_mode').read_text())
+        status = self.status()
+        self.assertEqual('off', status['systemDns']['privateDns'])
+        self.assertNotIn('private-dns-strict', {item['code'] for item in status['diagnostics']})
+
+    def test_opportunistic_private_dns_is_not_flagged(self):
+        # Automatic mode falls back to port 53 for resolvers without DoT, so it is compatible.
+        self.start()
+        self.assertEqual(0, self.run_command('enable-system-dns').returncode)
+        status = self.status()
+        self.assertEqual('opportunistic', status['systemDns']['privateDns'])
+        self.assertNotIn('private-dns-strict', {item['code'] for item in status['diagnostics']})
 
     def test_stale_android_dns_health_is_translated_to_info(self):
         self.write_status(Health=['Tailscale failed to set the DNS configuration of your device: '

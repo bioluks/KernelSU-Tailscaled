@@ -17,6 +17,19 @@ Unreleased (bioluks) - Companion module settings and in-app panel
   Android kills an app's whole uid/pid process group, and control actions run
   from KernelSU Manager's WebUI or the companion landed the daemon in it.
   control.sh now leaves any per-app process group before starting anything.
+- Replace the "last transfer" text at the bottom of the companion with a
+  transfer history: sent, received, failed and cancelled files with peer and
+  time, newest 100 kept on this device. Show all opens the full list with
+  Clear. Settings → Transfer history (default on) turns recording off and
+  offers to clear what is stored.
+- The "another DNS redirect" warning now explains itself: status-json carries
+  a detail with each foreign port-53 chain, whether it is active or dormant,
+  the boot script or module that creates it, and its rules. Tap the warning in
+  the companion or expand it in the WebUI.
+- Warn when Android Private DNS is set to a specific provider (strict DoT),
+  which bypasses system-wide DNS, and offer `private-dns-off` to switch it off
+  on explicit confirmation. Automatic mode is compatible and is not flagged.
+  status-json reports `systemDns.privateDns`.
 
 v3.5.0 (bioluks) - Opt-in system-wide DNS through Tailscale
 
