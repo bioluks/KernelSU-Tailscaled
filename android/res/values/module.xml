@@ -2,6 +2,10 @@
 <resources>
     <string name="main_module_settings_summary">Sign-in server, DNS, Taildrop folder and updates</string>
     <string name="panel_start_timeout">The local panel did not start in time. Refresh status and try again.</string>
+    <string name="panel_blocked">The panel could not load. This app is probably blocked from network access (for example by the Network permission or a firewall). Allow it, then retry, or open the panel in your browser.</string>
+    <string name="panel_network_settings">Open app settings</string>
+    <string name="panel_retry">Retry</string>
+    <string name="panel_open_browser">Open in browser</string>
     <string name="settings_panel_external">Open full panel in browser</string>
     <string name="settings_panel_external_summary">Off: the panel opens inside this app; press back to return. On: it opens in your default browser.</string>
     <string name="module_settings_title">Module settings</string>

@@ -1,3 +1,16 @@
+Unreleased (bioluks) - Companion module settings and in-app panel
+
+- Add a native Module settings screen to the companion covering every module
+  setting in the KernelSU WebUI: control server / Headscale sign-in, Taildrop
+  folder, Tailscale DNS, system-wide DNS, runtime and engine updates, staged
+  runtime apply, diagnostic records and legacy migration.
+- Open the full panel inside the companion by default, with a back bar and
+  back navigation through panel pages; Settings → Open full panel in browser
+  restores the previous behavior. The companion starts the panel when needed.
+- The companion now requests INTERNET for the loopback panel only; cleartext is
+  limited to 127.0.0.1 and other links open externally. A blocked per-app
+  network switch shows app settings, retry and browser options.
+
 v3.5.0 (bioluks) - Opt-in system-wide DNS through Tailscale
 
 - Add opt-in system-wide DNS: redirect Android's port-53 queries to the

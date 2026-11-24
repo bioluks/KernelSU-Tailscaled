@@ -2,6 +2,10 @@
 <resources>
     <string name="main_module_settings_summary">登录服务器、DNS、Taildrop 文件夹与更新</string>
     <string name="panel_start_timeout">本地面板启动超时，请刷新状态后重试。</string>
+    <string name="panel_blocked">面板无法加载。本应用可能被禁止访问网络（例如“网络”权限或防火墙）。请允许后重试，或在浏览器中打开面板。</string>
+    <string name="panel_network_settings">打开应用设置</string>
+    <string name="panel_retry">重试</string>
+    <string name="panel_open_browser">在浏览器中打开</string>
     <string name="settings_panel_external">在浏览器中打开完整面板</string>
     <string name="settings_panel_external_summary">关闭：在本应用内打开面板，按返回键回到首页。开启：在默认浏览器中打开。</string>
     <string name="module_settings_title">模块设置</string>
