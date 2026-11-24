@@ -202,3 +202,40 @@ Limits: Android Private DNS must stay off; apps with built-in DoH bypass the
 redirect; this kernel lacks IPv6 NAT so IPv6 port 53 is rejected to force the
 IPv4 path; the Poco F1 has no tailnet (still NeedsLogin) and keeps the feature
 off. The ARMv7 ZIP was verified offline only.
+
+## v3.6.0_tailscale1.104.7 — companion settings, in-app panel, and Taildrop history
+
+Version code `30060000` advances v3.5.0_tailscale1.104.7; the bundled engine is
+unchanged (Tailscale 1.104.7). Companion APK signing certificate unchanged
+(`0924bb045985c248e9ddf9e9139e090aeac72446ae94cf41d8896af5dc626ae3`). The three
+ZIPs rebuilt from `git archive` of the tagged commit in the pinned container are
+byte-identical to the locally built candidates.
+
+| Asset | SHA-256 |
+| --- | --- |
+| `KernelSU-Tailscaled-v3.6.0_tailscale1.104.7.zip` | `83eed5e3f3f6779ad8403588d08cf0681c8d70af857d92c10303860ffc193f06` |
+| `KernelSU-Tailscaled-arm-v3.6.0_tailscale1.104.7.zip` | `3937d6c582e0ea6b835ffa5b140e9574bba4d1edb982f3e27307b08eddc93268` |
+| `KernelSU-Tailscaled-arm64-v3.6.0_tailscale1.104.7.zip` | `1ad1dda91b76443e8259aa65c71f359a5a78f61c51a01a6a25dfd9902f80a283` |
+| `KernelSU-Tailscaled-companion-v3.6.0_tailscale1.104.7.apk` | `e2ef3a334b8f67bd0cb9679483052915e43b142ace629fd43ac87503505288b8` |
+
+Device evidence (Poco F1 `60b09a5f`, KernelSU-Next Manager 1.1.1, Android 15):
+
+- `ksud module install` flashed the exact universal ZIP (SHA-256 verified on
+  device) over v3.5.0. The hot install preserved the boot ID and state hash and
+  switched the active runtime to `3.6.0_tailscale1.104.7` with the supervisor,
+  daemon, data plane and web panel running.
+- The installed manager WebUI and `bundle.sha256` matched the ZIP manifest; the
+  loopback panel answered HTTP 200 over a forwarded port.
+- With explicit reboot authorization, the device rebooted (boot ID
+  `a05cbf52-…` → `28142757-6c01-46aa-920e-484913c39619`). The runtime activated
+  automatically without a manual start: `lifecycle=running`, all four
+  components running, `activeVersion=3.6.0_tailscale1.104.7`, `stagedVersion`
+  cleared. `tailscaled.state` hash was unchanged across install and reboot
+  (`322121959c…a354`), and the node identity (ID `12`, `100.64.0.8`,
+  `fd7a:115c:a1e0::8`) and `Running` backend state were preserved. Peer
+  connectivity to the OnePlus (`100.64.0.2`) succeeded after reboot.
+- System-wide DNS re-applied after reboot (`enabled:true, applied:true`).
+
+Limits: the OnePlus 9 Pro (primary device) was not re-flashed or rebooted for
+this release; its acceptance is inferred from the Poco and the shared engine.
+The ARMv7 ZIP was verified offline only.
