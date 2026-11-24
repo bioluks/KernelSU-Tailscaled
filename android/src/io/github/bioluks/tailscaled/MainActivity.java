@@ -19,7 +19,6 @@ public final class MainActivity extends Activity {
     private final ArrayList<View> controls = new ArrayList<>();
     private TextView status;
     private TextView result;
-    private String panelUrl = "http://127.0.0.1:8088/";
     private boolean busy;
     private String displayedLanguage;
     private final SharedPreferences.OnSharedPreferenceChangeListener transferListener = (preferences, key) -> {
@@ -31,30 +30,7 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         displayedLanguage = AppLocale.language(this);
-        if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
-        else getWindow().getDecorView().setSystemUiVisibility(
-                getWindow().getDecorView().getSystemUiVisibility()
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
-
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(getColor(R.color.background));
-        root.setOnApplyWindowInsetsListener((view, insets) -> {
-            if (Build.VERSION.SDK_INT >= 30) {
-                android.graphics.Insets safe = insets.getInsets(
-                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-                view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
-            } else {
-                view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
-                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
-            }
-            return insets;
-        });
-        setContentView(root);
-        root.requestApplyInsets();
-
+        LinearLayout root = Ui.screen(this);
         addAppBar(root);
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -79,6 +55,8 @@ public final class MainActivity extends Activity {
         actionButton(actions, R.string.restart, () -> confirmControl("restart", R.string.restart_warning));
 
         content.addView(Ui.heading(this, R.string.main_tools));
+        toolRow(content, R.string.module_settings_title, R.string.main_module_settings_summary,
+                () -> startActivity(new Intent(this, ModuleSettingsActivity.class)));
         toolRow(content, R.string.panel, R.string.main_panel_summary, this::openPanel);
         toolRow(content, R.string.logs, R.string.main_logs_summary, () -> load("logs"));
         toolRow(content, R.string.send_files, R.string.main_send_summary, this::pickFiles);
@@ -236,8 +214,6 @@ public final class MainActivity extends Activity {
             JSONObject tailscale = state.optJSONObject("tailscale");
             JSONObject self = tailscale == null ? null : tailscale.optJSONObject("Self");
             JSONObject drop = state.optJSONObject("taildrop");
-            String listen = state.optString("webListen");
-            if (listen.matches("127\\.0\\.0\\.1:[0-9]{1,5}")) panelUrl = "http://" + listen + "/";
             String description = state.getString("lifecycle") + " · " + state.getString("mode")
                     + "\nModule " + state.getString("moduleVersion") + " · Tailscale " + state.getString("tailscaleVersion");
             if (self != null) {
@@ -268,9 +244,41 @@ public final class MainActivity extends Activity {
         } catch (JSONException e) { status.setText(getString(R.string.error) + "\n" + e.getMessage()); }
     }
 
+    /** Starts the loopback panel when needed, then opens it in-app or in the browser per Settings. */
     private void openPanel() {
-        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(panelUrl))); }
-        catch (ActivityNotFoundException e) { showError(e); }
+        if (busy) return;
+        setBusy(true);
+        status.setText(R.string.working);
+        worker.execute(() -> {
+            try {
+                String state = RootCommand.run("status-json");
+                ModuleStatus module = ModuleStatus.parse(state);
+                if (!module.webRunning) {
+                    RootCommand.run("web-restart");
+                    long deadline = System.currentTimeMillis() + 20_000;
+                    do {
+                        Thread.sleep(500);
+                        state = RootCommand.run("status-json");
+                        module = ModuleStatus.parse(state);
+                    } while (!module.webRunning && System.currentTimeMillis() < deadline);
+                    if (!module.webRunning) throw new java.io.IOException(getString(R.string.panel_start_timeout));
+                }
+                String current = state;
+                String url = module.panelUrl;
+                runOnUiThread(() -> {
+                    if (isDestroyed()) return;
+                    setBusy(false);
+                    renderStatus(current);
+                    boolean external = getSharedPreferences("companion", 0).getBoolean(SettingsActivity.PANEL_EXTERNAL, false);
+                    try {
+                        startActivity(external ? new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                : new Intent(this, PanelActivity.class).putExtra(PanelActivity.EXTRA_URL, url));
+                    } catch (ActivityNotFoundException e) { showError(e); }
+                });
+            } catch (Exception e) { runOnUiThread(() -> { if (!isDestroyed()) {
+                setBusy(false); status.setText(getString(R.string.error) + "\n" + e.getMessage());
+            } }); }
+        });
     }
     private void pickFiles() {
         Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*")

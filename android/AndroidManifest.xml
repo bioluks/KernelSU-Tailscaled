@@ -2,11 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.github.bioluks.tailscaled">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="36" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Required only for the in-app panel; cleartext is limited to 127.0.0.1. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application android:label="@string/app_name" android:icon="@drawable/ic_module"
-        android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true">
+        android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -14,6 +17,11 @@
             </intent-filter>
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
+        <activity android:name=".ModuleSettingsActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PanelActivity" android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".SettingsActivity" android:exported="false" />
         <activity android:name=".ShareActivity" android:exported="true"
             android:theme="@style/ShareTheme" android:excludeFromRecents="true"

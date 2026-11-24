@@ -38,7 +38,19 @@ final class RootCommand {
     }
 
     private static final Set<String> ACTIONS = new HashSet<>(Arrays.asList(
-            "status-json", "enable", "disable", "restart", "logs", "taildrop-targets"));
+            "status-json", "enable", "disable", "restart", "logs", "diagnostics", "web-restart",
+            "taildrop-targets", "taildrop-save-dir", "login-server",
+            "enable-dns", "disable-dns", "enable-system-dns", "disable-system-dns",
+            "migration-status", "migrate-legacy", "apply-staged",
+            "engine-status", "engine-check", "engine-prepare", "engine-apply"));
+
+    private static long timeoutSeconds(String action) {
+        switch (action) {
+            case "engine-prepare": return 180;
+            case "login-server": case "engine-apply": case "apply-staged": case "migrate-legacy": return 90;
+            default: return 60;
+        }
+    }
 
     static final class Capture extends Thread {
         private final InputStream input;
@@ -63,14 +75,19 @@ final class RootCommand {
         }
     }
 
-    static String run(String action) throws Exception {
+    static String run(String action) throws Exception { return run(action, null); }
+
+    /** Runs an allowlisted control action; {@code input} is written as one stdin line, never as argv. */
+    static String run(String action, String input) throws Exception {
         if (!ACTIONS.contains(action)) throw new IllegalArgumentException("Unsupported action");
         Process process = rootProcess("exec sh " + CONTROL + " " + action)
                 .redirectErrorStream(true).start();
-        process.getOutputStream().close();
-        Capture capture = new Capture(process.getInputStream());
         try {
-            if (!process.waitFor(60, TimeUnit.SECONDS)) throw new IOException("Root command timed out");
+            Capture capture = new Capture(process.getInputStream());
+            try (java.io.OutputStream stdin = process.getOutputStream()) {
+                if (input != null) stdin.write((input + "\n").getBytes(StandardCharsets.UTF_8));
+            }
+            if (!process.waitFor(timeoutSeconds(action), TimeUnit.SECONDS)) throw new IOException("Root command timed out");
             String output = capture.result();
             if (process.exitValue() != 0) throw new IOException(output.isEmpty()
                     ? "Root denied or module unavailable. Install the module and grant root access." : output);

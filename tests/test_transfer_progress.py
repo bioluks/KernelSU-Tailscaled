@@ -16,7 +16,7 @@ def jdk_tool(name):
     return shutil.which(name)
 
 
-@unittest.skipUnless(jdk_tool('javac') and jdk_tool('java'), 'JDK required for pure-Java progress tests')
+@unittest.skipUnless(jdk_tool('javac') and jdk_tool('java'), 'JDK required for pure-Java companion tests')
 class TransferProgressTests(unittest.TestCase):
     def test_real_progress_model_handles_sizes_rates_stalls_and_file_reset(self):
         with tempfile.TemporaryDirectory(prefix='kst-progress-') as directory:
@@ -29,6 +29,21 @@ class TransferProgressTests(unittest.TestCase):
             self.assertEqual(0, compiled.returncode, compiled.stdout + compiled.stderr)
             result = subprocess.run(
                 [jdk_tool('java'), '-cp', directory, 'io.github.bioluks.tailscaled.TransferProgressTest'],
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_companion_input_rules_match_the_webui(self):
+        with tempfile.TemporaryDirectory(prefix='kst-input-') as directory:
+            compiled = subprocess.run(
+                [jdk_tool('javac'), '--release', '8', '-d', directory,
+                 str(ROOT / 'android/src/io/github/bioluks/tailscaled/ModuleInput.java'),
+                 str(ROOT / 'tests/runtime/ModuleInputTest.java')],
+                capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(0, compiled.returncode, compiled.stdout + compiled.stderr)
+            result = subprocess.run(
+                [jdk_tool('java'), '-cp', directory, 'io.github.bioluks.tailscaled.ModuleInputTest'],
                 capture_output=True, text=True, timeout=10,
             )
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)

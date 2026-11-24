@@ -28,7 +28,7 @@ base, the changes extend everyday use, not just installation or bug fixes:
 
 | Area | Added in this fork |
 | --- | --- |
-| **Native Android companion** | Optional Android 8.0+ app with module status, enable/disable, restart, logs and access to the full local panel. No idle app polling, boot service or second Tailscale connection. |
+| **Native Android companion** | Optional Android 8.0+ app with module status, enable/disable, restart, logs, native module settings matching the WebUI, and the full local panel in-app or in the browser. No idle app polling, boot service or second Tailscale connection. |
 | **Android file sharing** | Send one or multiple files from Files, Photos and other apps, or use the in-app document picker. A rounded device sheet keeps the source app visible behind a dimmed overlay. Tap to send immediately, or enable optional confirmation. Android 10+ Direct Share shortcuts expose eligible peers when Android chooses to show them. |
 | **Transfer feedback** | Cancellable background sends with per-file sent/total bytes, current KB/s or MB/s, and a separate finalizing state. Files stream from granted content URIs without whole-file cache copies. Optional receive notifications report completed saves. |
 | **Automatic Taildrop receiving** | Native-mode receiving into Downloads or a WebUI-selected shared-storage folder. One event-driven, supervised receiver; no periodic inbox scan. Duplicate names are preserved, failed saves remain queued, and folder changes restart only the receiver. Delivery works without the companion installed or running. |
@@ -233,9 +233,19 @@ not create a VPN, second daemon or separate account connection.
 - Eligible devices are also published as Android 10+ sharing shortcuts when the
   device picker is loaded. Android controls whether and where Direct Share
   suggestions appear; the in-app picker always remains available.
-- Native controls provide status, enable/disable, restart, logs and an external
-  browser link to the full loopback panel. Advanced settings stay in the WebUI.
-  The companion defaults to English; **Settings → Language** remembers an
+- Native controls provide status, enable/disable, restart and logs.
+  **Module settings** covers every module setting from the KernelSU WebUI:
+  control server / Headscale sign-in, Taildrop folder, Tailscale DNS,
+  system-wide DNS, runtime and engine updates, staged-runtime apply, diagnostic
+  records and legacy migration, so the manager WebUI is not needed day to day.
+- **Open full panel** starts the loopback panel when needed and opens it inside
+  the app by default; back steps through the panel, then returns to the
+  companion. **Settings → Open full panel in browser** uses the default browser
+  instead. The in-app panel needs network access for the app: ROM per-app
+  "Network access" switches block even `127.0.0.1`, and the panel then offers
+  app settings, retry and the browser. Cleartext is permitted only to
+  `127.0.0.1`; other links open externally.
+- The companion defaults to English; **Settings → Language** remembers an
   explicit English or Simplified Chinese selection.
 - **Settings → Receive notifications** opens Android's notification settings
   for optional completed-file notifications. Receiving and folder selection

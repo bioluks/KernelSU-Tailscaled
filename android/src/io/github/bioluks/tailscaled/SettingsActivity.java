@@ -6,24 +6,18 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.Typeface;
-import android.graphics.drawable.ShapeDrawable;
-import android.graphics.drawable.shapes.PathShape;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
-import android.view.WindowInsets;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 
 public final class SettingsActivity extends Activity {
+    /** Preference key: true opens the full panel in the default browser instead of in-app. */
+    static final String PANEL_EXTERNAL = "panelExternal";
     private TextView notificationSummary;
     private LinearLayout notificationRow;
 
@@ -34,30 +28,8 @@ public final class SettingsActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         setTitle(R.string.settings_title);
-        if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
-        else getWindow().getDecorView().setSystemUiVisibility(
-                getWindow().getDecorView().getSystemUiVisibility()
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
-
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(getColor(R.color.background));
-        root.setOnApplyWindowInsetsListener((view, insets) -> {
-            if (Build.VERSION.SDK_INT >= 30) {
-                android.graphics.Insets safe = insets.getInsets(
-                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-                view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
-            } else {
-                view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
-                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
-            }
-            return insets;
-        });
-        setContentView(root);
-        root.requestApplyInsets();
-        addAppBar(root);
+        LinearLayout root = Ui.screen(this);
+        root.addView(Ui.backBar(this, getString(R.string.settings_title)), new LinearLayout.LayoutParams(-1, -2));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -74,7 +46,8 @@ public final class SettingsActivity extends Activity {
                 ? R.string.settings_language_zh : R.string.settings_language_en);
         languageRow.setContentDescription(getString(R.string.settings_language) + ", " + languageSummary.getText());
         languageRow.setOnClickListener(view -> chooseLanguage());
-        addConfirmation(content);
+        addSwitch(content, "confirmSend", R.string.settings_confirm_send, R.string.settings_confirm_summary);
+        addSwitch(content, PANEL_EXTERNAL, R.string.settings_panel_external, R.string.settings_panel_external_summary);
 
         content.addView(Ui.heading(this, R.string.settings_notifications));
         notificationSummary = Ui.text(this, "", 14, R.color.muted);
@@ -94,36 +67,6 @@ public final class SettingsActivity extends Activity {
         notificationSummary.setText(enabled ? R.string.settings_notifications_on : R.string.settings_notifications_off);
         notificationRow.setContentDescription(getString(R.string.settings_receive_notifications)
                 + ", " + notificationSummary.getText());
-    }
-
-    private void addAppBar(LinearLayout root) {
-        LinearLayout bar = new LinearLayout(this);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 20), Ui.dp(this, 8));
-        ImageButton back = new ImageButton(this);
-        Path path = new Path();
-        path.moveTo(20, 12); path.lineTo(4, 12);
-        path.moveTo(11, 5); path.lineTo(4, 12); path.lineTo(11, 19);
-        ShapeDrawable arrow = new ShapeDrawable(new PathShape(path, 24, 24));
-        arrow.getPaint().setColor(getColor(R.color.on_surface));
-        arrow.getPaint().setStyle(Paint.Style.STROKE);
-        arrow.getPaint().setStrokeWidth(2);
-        arrow.getPaint().setStrokeCap(Paint.Cap.ROUND);
-        arrow.getPaint().setStrokeJoin(Paint.Join.ROUND);
-        arrow.setIntrinsicWidth(Ui.dp(this, 24));
-        arrow.setIntrinsicHeight(Ui.dp(this, 24));
-        back.setImageDrawable(arrow);
-        back.setPadding(Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12));
-        back.setBackground(Ui.card(this, 24, false));
-        back.setContentDescription(getString(R.string.settings_back));
-        back.setOnClickListener(view -> finish());
-        bar.addView(back, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
-        TextView title = Ui.text(this, getString(R.string.settings_title), 24, R.color.on_surface);
-        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        title.setPadding(Ui.dp(this, 16), 0, 0, 0);
-        if (Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
-        bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        root.addView(bar, new LinearLayout.LayoutParams(-1, -2));
     }
 
     private LinearLayout preferenceRow(LinearLayout content, int title, TextView summary) {
@@ -151,25 +94,24 @@ public final class SettingsActivity extends Activity {
         return row;
     }
 
-    private void addConfirmation(LinearLayout content) {
+    private void addSwitch(LinearLayout content, String key, int title, int summaryText) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 16));
         card.setBackground(Ui.card(this, 16, true));
         Switch confirmation = new Switch(this);
-        confirmation.setText(R.string.settings_confirm_send);
+        confirmation.setText(title);
         confirmation.setTextSize(16);
         confirmation.setTextColor(getColor(R.color.on_surface));
         confirmation.setSingleLine(false);
         confirmation.setSwitchPadding(Ui.dp(this, 16));
         confirmation.setMinimumHeight(Ui.dp(this, 48));
-        confirmation.setChecked(getSharedPreferences("companion", MODE_PRIVATE).getBoolean("confirmSend", false));
-        confirmation.setContentDescription(getString(R.string.settings_confirm_send)
-                + ". " + getString(R.string.settings_confirm_summary));
+        confirmation.setChecked(getSharedPreferences("companion", MODE_PRIVATE).getBoolean(key, false));
+        confirmation.setContentDescription(getString(title) + ". " + getString(summaryText));
         confirmation.setOnCheckedChangeListener((button, checked) ->
-                getSharedPreferences("companion", MODE_PRIVATE).edit().putBoolean("confirmSend", checked).apply());
+                getSharedPreferences("companion", MODE_PRIVATE).edit().putBoolean(key, checked).apply());
         card.addView(confirmation, new LinearLayout.LayoutParams(-1, -2));
-        TextView summary = Ui.text(this, getString(R.string.settings_confirm_summary), 14, R.color.muted);
+        TextView summary = Ui.text(this, getString(summaryText), 14, R.color.muted);
         summary.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         card.addView(summary, new LinearLayout.LayoutParams(-1, -2));
         card.setOnClickListener(view -> confirmation.toggle());
