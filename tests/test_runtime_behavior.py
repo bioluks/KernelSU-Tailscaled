@@ -520,6 +520,9 @@ class RuntimeBehaviorTests(RuntimeHarness):
         self.assertEqual('running', self.status()['components']['daemon'])
 
     def test_truthful_status_address_routes_health_and_secret_projection(self):
+        # Route inspection has a whole-second budget (date +%s); the harness-wide
+        # 1s value can expire on a second boundary on slow CI and yield "unknown".
+        self.env['TM_CLI_TIMEOUT'] = '3'
         self.start()
         status = self.status()
         self.assertEqual(status['schemaVersion'], 2)
