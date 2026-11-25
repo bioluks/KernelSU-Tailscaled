@@ -247,14 +247,16 @@ Limits: the OnePlus 9 Pro (primary device) was not re-flashed or rebooted for
 this release; its acceptance is inferred from the Poco and the shared engine.
 The ARMv7 ZIP was verified offline only.
 
-## v4.0.0_tailscale1.104.7 — rename to TailMate, predecessor handover (candidate)
+## v4.0.0_tailscale1.104.7 — rename to TailMate, predecessor handover
 
 Version code `40000000`. Module id `TailMate`, state `/data/adb/TailMate`,
 companion package `com.askingmeric.tailmate`. The engine (Tailscale 1.104.7,
 same patches) was rebuilt from source twice in `golang:1.27.4-trixie` with
 identical bytes; only the long-version stamp changed (`tm-android-compat-1`).
 Engine binaries are no longer committed; `engine/engine-build.json` pins them.
-Not yet tagged or published: awaiting the maintainer's acceptance.
+Accepted by the maintainer for publication on 2026-11-25 after the evidence
+below; branch CI run 45651588448 passed (engine built from source against the
+lock, packages verified and reproducible, unsigned companion built).
 
 | Candidate | SHA-256 |
 | --- | --- |
