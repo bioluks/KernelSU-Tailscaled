@@ -1,0 +1,19 @@
+<p><b>TailMate needs a rooted device and the TailMate root module.</b> This app is the optional companion for the module; on its own it does nothing.</p>
+
+<p>The TailMate module runs a Tailscale-compatible daemon natively on rooted Android, with a real TUN interface (<i>tailscale0</i>) instead of userspace networking. It does <b>not</b> occupy Android's VPN slot, so it runs alongside any always-on VPN. It works with Tailscale and with self-hosted Headscale coordination servers.</p>
+
+<p>The companion adds:</p>
+<ul>
+<li>Module status, start/stop/restart, logs and native module settings</li>
+<li>The module's local panel, in-app or in the browser</li>
+<li>Taildrop file sending from the Android share sheet, with per-file progress, speed and cancellation; optional confirmation before sending</li>
+<li>Notifications for completed Taildrop receives (receiving itself runs in the module, even when the app is closed)</li>
+<li>Optional, clearable transfer history</li>
+<li>English and Simplified Chinese interface</li>
+</ul>
+
+<p>The app has no background polling and no boot service. It talks to the module through root (<i>su</i>); the only network access is the module's local panel on 127.0.0.1.</p>
+
+<p>Supported root managers: KernelSU and KernelSU-Next (tested); Magisk and APatch are expected to work. Install the module ZIP from the project's releases page.</p>
+
+<p>TailMate is not an official Tailscale product. Tailscale is a trademark of Tailscale Inc.</p>

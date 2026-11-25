@@ -1,0 +1,1 @@
+Companion for the TailMate root module: native Tailscale without the VPN slot

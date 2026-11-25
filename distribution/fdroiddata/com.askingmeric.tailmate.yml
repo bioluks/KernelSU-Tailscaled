@@ -1,0 +1,39 @@
+Categories:
+  - Connectivity
+  - File Transfer
+License: BSD-3-Clause
+AuthorName: Meriç Aşkın (bioluks)
+SourceCode: https://github.com/bioluks/TailMate
+IssueTracker: https://github.com/bioluks/TailMate/issues
+Changelog: https://github.com/bioluks/TailMate/blob/HEAD/CHANGELOG.txt
+
+AutoName: TailMate
+RequiresRoot: true
+
+RepoType: git
+Repo: https://github.com/bioluks/TailMate.git
+Binaries: https://github.com/bioluks/TailMate/releases/download/v%v/TailMate-companion-v%v.apk
+
+Builds:
+  - versionName: 4.0.0_tailscale1.104.7
+    versionCode: 40000000
+    commit: v4.0.0_tailscale1.104.7
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-25-jdk-headless
+    scandelete:
+      - files
+    prebuild: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+    build:
+      - export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64
+      - export ANDROID_HOME=$$SDK$$
+      - python3 android/build.py --unsigned --output build
+    output: build/TailMate-companion-v*-unsigned.apk
+
+AllowedAPKSigningKeys: 0924bb045985c248e9ddf9e9139e090aeac72446ae94cf41d8896af5dc626ae3
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+_tailscale[0-9.]+$
+UpdateCheckData: module.prop|versionCode=(\d+)|.|version=(\S+)
+CurrentVersion: 4.0.0_tailscale1.104.7
+CurrentVersionCode: 40000000

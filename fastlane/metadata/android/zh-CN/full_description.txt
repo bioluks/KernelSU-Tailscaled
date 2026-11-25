@@ -1,0 +1,19 @@
+<p><b>TailMate 需要已 Root 的设备并安装 TailMate Root 模块。</b>本应用是该模块的可选配套应用，单独安装没有作用。</p>
+
+<p>TailMate 模块在已 Root 的 Android 上以原生方式运行兼容 Tailscale 的守护进程，使用真实的 TUN 网卡（<i>tailscale0</i>）而非用户态网络。它<b>不</b>占用 Android 的 VPN 槽位，可与任何始终开启的 VPN 同时运行。支持 Tailscale 与自建的 Headscale 协调服务器。</p>
+
+<p>配套应用提供：</p>
+<ul>
+<li>模块状态、启动/停止/重启、日志及原生模块设置</li>
+<li>在应用内或浏览器中打开模块本地面板</li>
+<li>从 Android 分享菜单通过 Taildrop 发送文件，显示每个文件的进度与速度并可取消；可选发送前确认</li>
+<li>Taildrop 接收完成通知（接收由模块完成，应用关闭时同样有效）</li>
+<li>可选、可清除的传输记录</li>
+<li>英文与简体中文界面</li>
+</ul>
+
+<p>应用没有后台轮询，也没有开机服务。它通过 Root（<i>su</i>）与模块通信；唯一的网络访问是 127.0.0.1 上的模块本地面板。</p>
+
+<p>支持的 Root 管理器：KernelSU 与 KernelSU-Next（已测试）；Magisk 与 APatch 预期可用。模块 ZIP 请从项目发布页面下载。</p>
+
+<p>TailMate 并非 Tailscale 官方产品。Tailscale 是 Tailscale Inc. 的商标。</p>

@@ -1,0 +1,1 @@
+TailMate Root 模块的配套应用：原生 Tailscale，不占用 VPN 槽位

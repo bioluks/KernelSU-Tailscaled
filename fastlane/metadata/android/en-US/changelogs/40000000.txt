@@ -1,0 +1,2 @@
+Renamed to TailMate (new package com.askingmeric.tailmate; uninstall the old "Tailscaled Companion" app).
+Requires TailMate module 4.0.0; installing it automatically takes over node identity and settings from KernelSU-Tailscaled without signing in again.
