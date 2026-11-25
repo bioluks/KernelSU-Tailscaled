@@ -286,5 +286,13 @@ universal ZIP installed with `ksud module install`:
   delivered with the "Files sent" notification.
 
 Limits: Magisk and APatch not tested on a device. ARMv7 ZIP verified offline
-only. The bridge (`update-kernelsu.json` via the renamed repo) is checked only
-after the GitHub rename.
+only.
+
+Repository rename (2026-11-25): GitHub `bioluks/KernelSU-Tailscaled` →
+`bioluks/TailMate`, Forgejo `execd/KernelSU-Tailscaled` → `execd/TailMate`.
+Afterwards the 3.x `updateJson`
+(`raw.githubusercontent.com/bioluks/KernelSU-Tailscaled/master/update-kernelsu.json`),
+the old repo page, an old release asset URL, the old git URL and the old Forgejo
+page all still resolved (HTTP 200 via redirect). Existing installs keep polling
+the bridge feed; it advances to 4.0.0 only when `master` is fast-forwarded after
+the release exists.
