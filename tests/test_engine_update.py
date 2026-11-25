@@ -166,8 +166,8 @@ class EngineUpdateTests(unittest.TestCase):
           json_escape() {{ printf '%s' "$1"; }}
           uname() {{ printf 'aarch64\\n'; }}
           engine_fetch() {{ printf 'download\\n' >> "$TS_DIR/calls"; return 1; }}
-          kst_pointer() {{ ln -s "$2" "$TS_DIR/.$1.new" && mv -Tf "$TS_DIR/.$1.new" "$TS_DIR/$1"; }}
-          kst_runtime() {{
+          tm_pointer() {{ ln -s "$2" "$TS_DIR/.$1.new" && mv -Tf "$TS_DIR/.$1.new" "$TS_DIR/$1"; }}
+          tm_runtime() {{
             printf '%s\\n' "$2" >> "$TS_DIR/calls"
             if [ "$2" = stop ]; then printf '0\\n' > "$RUN_DIR/wanted"; fi
             if [ "$2" = start ]; then printf '1\\n' > "$RUN_DIR/wanted"; fi
@@ -341,7 +341,7 @@ shutil.copyfile(pathlib.Path(os.environ['ENGINE_DOWNLOAD_FIXTURE']) / source,
           RUN_DIR="$TS_DIR/run"
           bounded() {{ seconds=$1; shift; timeout "$seconds" "$@"; }}
           json_escape() {{ printf '%s' "$1"; }}
-          kst_pointer() {{ ln -s "$2" "$TS_DIR/.$1.new" && mv -Tf "$TS_DIR/.$1.new" "$TS_DIR/$1"; }}
+          tm_pointer() {{ ln -s "$2" "$TS_DIR/.$1.new" && mv -Tf "$TS_DIR/.$1.new" "$TS_DIR/$1"; }}
           engine_prepare
         ''')
 

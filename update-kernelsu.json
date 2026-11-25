@@ -1,6 +1,6 @@
 {
-  "version": "v3.6.0_tailscale1.104.7",
-  "versionCode": 30060000,
-  "zipUrl": "https://github.com/bioluks/KernelSU-Tailscaled/releases/download/v3.6.0_tailscale1.104.7/KernelSU-Tailscaled-v3.6.0_tailscale1.104.7.zip",
-  "changelog": "https://raw.githubusercontent.com/bioluks/KernelSU-Tailscaled/master/CHANGELOG.txt"
+  "version": "v4.0.0_tailscale1.104.7",
+  "versionCode": 40000000,
+  "zipUrl": "https://github.com/bioluks/TailMate/releases/download/v4.0.0_tailscale1.104.7/TailMate-v4.0.0_tailscale1.104.7.zip",
+  "changelog": "https://raw.githubusercontent.com/bioluks/TailMate/master/CHANGELOG.txt"
 }

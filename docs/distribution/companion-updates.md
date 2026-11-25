@@ -1,10 +1,14 @@
 # Companion update channels
 
-The optional Android companion requires Android 8.0+, KernelSU root approval, and
-an independently installed compatible KernelSU-Tailscaled module. These channels
-update **only the APK**, never the module ZIP. For this release, use the matching
-module **v3.2.0** to obtain the native Android compatibility fixes. The module
-remains usable without the companion.
+The optional Android companion (package `com.askingmeric.tailmate`) requires
+Android 8.0+, root approval in the root manager, and an independently installed
+TailMate module (4.0.0 or later). These channels update **only the APK**, never
+the module ZIP. The module remains usable without the companion.
+
+The pre-4.0.0 companion used package `io.github.bioluks.tailscaled`. Android
+treats TailMate as a different app: uninstall the old companion and install the
+TailMate one; existing Obtainium entries for the old package must be replaced
+with the imports below.
 
 ## F-Droid-compatible repositories
 
@@ -33,8 +37,8 @@ channels. A debug-signed build cannot update to the release signer in place.
 
 Install [Obtainium](https://github.com/ImranR98/Obtainium/releases), then choose one:
 
-- [Import GitHub stable companion](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22io.github.bioluks.tailscaled%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fbioluks%2FKernelSU-Tailscaled%22%2C%22author%22%3A%22bioluks%22%2C%22name%22%3A%22KernelSU-Tailscaled%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%2C%5C%22includeDrafts%5C%22%3Afalse%2C%5C%22includeZips%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5EKernelSU-Tailscaled-companion-v%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D).
-- [Import Forgejo stable companion](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22io.github.bioluks.tailscaled%22%2C%22url%22%3A%22https%3A%2F%2Fgit.dreamscape.one%2Fexecd%2FKernelSU-Tailscaled%22%2C%22author%22%3A%22bioluks%22%2C%22name%22%3A%22KernelSU-Tailscaled%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%2C%5C%22includeDrafts%5C%22%3Afalse%2C%5C%22includeZips%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5EKernelSU-Tailscaled-companion-v%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%5C%5C%5C%5C.apk%24%5C%22%7D%22%2C%22overrideSource%22%3A%22Codeberg%22%7D).
+- [Import GitHub stable companion](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.askingmeric.tailmate%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fbioluks%2FTailMate%22%2C%22author%22%3A%22bioluks%22%2C%22name%22%3A%22TailMate%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%2C%5C%22includeDrafts%5C%22%3Afalse%2C%5C%22includeZips%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ETailMate-companion-v%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%28_tailscale%5B0-9.%5D%2B%29%3F%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D).
+- [Import Forgejo stable companion](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.askingmeric.tailmate%22%2C%22url%22%3A%22https%3A%2F%2Fgit.dreamscape.one%2Fexecd%2FTailMate%22%2C%22author%22%3A%22bioluks%22%2C%22name%22%3A%22TailMate%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%2C%5C%22includeDrafts%5C%22%3Afalse%2C%5C%22includeZips%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ETailMate-companion-v%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%5C%5C%5C%5C.%5B0-9%5D%2B%28_tailscale%5B0-9.%5D%2B%29%3F%5C%5C%5C%5C.apk%24%5C%22%7D%22%2C%22overrideSource%22%3A%22Codeberg%22%7D).
 
 The links use Obtainium's supported full-config deep link through its redirect
 page, which offers an installation prompt when Obtainium is absent. They exclude
@@ -44,16 +48,18 @@ the self-hosted URL. No token is needed for either public repository.
 
 Import payloads: [GitHub](../../distribution/obtainium-github.json) and
 [Forgejo](../../distribution/obtainium-forgejo.json). Both identify Android package
-`io.github.bioluks.tailscaled`; importing both is not intended to create two apps.
+`com.askingmeric.tailmate`; importing both is not intended to create two apps.
 For a manual setup, use the corresponding source repository URL and filter APK
-names with `^KernelSU-Tailscaled-companion-v[0-9]+\.[0-9]+\.[0-9]+\.apk$`.
+names with `^TailMate-companion-v[0-9]+\.[0-9]+\.[0-9]+(_tailscale[0-9.]+)?\.apk$`.
+(The pre-4.0.0 filter lacked the `_tailscale…` suffix group and therefore did not
+match the 3.4.0+ asset names.)
 
 ## Maintainer operations
 
 Source and releases are independently writable:
 
-- GitHub: https://github.com/bioluks/KernelSU-Tailscaled
-- Forgejo: https://git.dreamscape.one/execd/KernelSU-Tailscaled
+- GitHub: https://github.com/bioluks/TailMate (formerly `KernelSU-Tailscaled`; old URLs redirect)
+- Forgejo: https://git.dreamscape.one/execd/TailMate
 
 Forgejo repositories have `mirror=false`, `fork=false`, and no migration URL.
 Initial v3.0.0/v3.1.0 assets were seeded from the already approved releases, with
@@ -88,13 +94,13 @@ For a separately accepted local Forgejo release:
 
 ```sh
 git push forgejo "refs/tags/$TAG:refs/tags/$TAG"
-fj -H git.dreamscape.one release create --repo execd/KernelSU-Tailscaled \
+fj -H git.dreamscape.one release create --repo execd/TailMate \
   --tag "$TAG" --body "$(cat "$NOTES")" \
-  --attach "$ARTIFACTS/KernelSU-Tailscaled-companion-$TAG.apk" \
-  --attach "$ARTIFACTS/KernelSU-Tailscaled-$TAG.zip" \
-  --attach "$ARTIFACTS/KernelSU-Tailscaled-arm-$TAG.zip" \
-  --attach "$ARTIFACTS/KernelSU-Tailscaled-arm64-$TAG.zip" \
-  "KernelSU-Tailscaled $TAG"
+  --attach "$ARTIFACTS/TailMate-companion-$TAG.apk" \
+  --attach "$ARTIFACTS/TailMate-$TAG.zip" \
+  --attach "$ARTIFACTS/TailMate-arm-$TAG.zip" \
+  --attach "$ARTIFACTS/TailMate-arm64-$TAG.zip" \
+  "TailMate $TAG"
 ```
 
 Do not overwrite published assets or republish an unapproved build. Existing

@@ -1,7 +1,7 @@
-id=kernelsu-tailscaled
-name=KernelSU-Tailscaled
-version=3.6.0_tailscale1.104.7
-versionCode=30060000
-author=bioluks; based on WayneShao, ryukora and ANASFANANI
-description=Independent Tailscale module with KernelSU WebUI, isolated state, and explicit migration.
-updateJson=https://raw.githubusercontent.com/bioluks/KernelSU-Tailscaled/master/update-kernelsu.json
+id=TailMate
+name=TailMate
+version=4.0.0_tailscale1.104.7
+versionCode=40000000
+author=bioluks (Meriç Aşkın); based on WayneShao, ryukora and ANASFANANI
+description=Tailscale for rooted Android (KernelSU, KernelSU-Next, Magisk, APatch): native TUN without occupying the VPN slot, isolated state, WebUI; companion app optional.
+updateJson=https://raw.githubusercontent.com/bioluks/TailMate/master/update.json

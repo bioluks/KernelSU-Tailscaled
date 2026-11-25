@@ -45,7 +45,7 @@ sys.stdout.buffer.write(reply)
                      "POSIX shell and timeout required; run on Linux")
 class StatusSummaryTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="kst-summary-", dir="/tmp")
+        self.temp = tempfile.TemporaryDirectory(prefix="tm-summary-", dir="/tmp")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.bundle = self.root / "state/releases/selected"
@@ -67,8 +67,8 @@ class StatusSummaryTests(unittest.TestCase):
         self.lifecycle.write_text("running\n")
         self.module_prop = self.module / "module.prop"
         self.original = (
-            "id=kernelsu-tailscaled\n"
-            "name=KernelSU-Tailscaled\n"
+            "id=TailMate\n"
+            "name=TailMate\n"
             "version=2.0.4\n"
             "versionCode=20000010\n"
             "author=fixture\n"
@@ -82,9 +82,9 @@ class StatusSummaryTests(unittest.TestCase):
         cli.chmod(0o755)
         self.calls = self.root / "cli-calls"
         self.env = dict(os.environ, BUNDLE_DIR=str(self.bundle), TS_DIR=str(self.state),
-                        MODDIR=str(self.module), KST_STAGED_DIR=str(self.staged),
-                        KST_BUSYBOX=str(self.root / "missing-busybox"),
-                        KST_CLI_TIMEOUT="1", SUMMARY_CLI_CALLS=str(self.calls))
+                        MODDIR=str(self.module), TM_STAGED_DIR=str(self.staged),
+                        TM_BUSYBOX=str(self.root / "missing-busybox"),
+                        TM_CLI_TIMEOUT="1", SUMMARY_CLI_CALLS=str(self.calls))
         self.addCleanup(self.stop_clients)
         self.reply = b"100.64.0.10\n"
         self.requests = []
@@ -323,16 +323,16 @@ class StatusSummaryTests(unittest.TestCase):
     def test_hanging_cli_uses_timeout_when_busybox_is_not_executable(self):
         busybox = self.root / "busybox"
         busybox.touch(mode=0o644)
-        self.env["KST_BUSYBOX"] = str(busybox)
+        self.env["TM_BUSYBOX"] = str(busybox)
         self.assert_hanging_cli_is_bounded()
 
     def test_hanging_cli_has_default_timeout(self):
-        self.env.pop("KST_CLI_TIMEOUT")
+        self.env.pop("TM_CLI_TIMEOUT")
         self.assert_hanging_cli_is_bounded(deadline=6)
 
     @unittest.skipUnless(shutil.which("busybox"), "BusyBox required for its real timeout applet")
     def test_hanging_cli_uses_busybox_without_path_timeout(self):
-        self.env["KST_BUSYBOX"] = shutil.which("busybox")
+        self.env["TM_BUSYBOX"] = shutil.which("busybox")
         commands = self.root / "commands"
         commands.mkdir()
         for name in ("awk", "chmod", "cut", "head", "mv", "readlink", "rm", "sed", "tr"):

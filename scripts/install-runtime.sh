@@ -2,26 +2,29 @@
 
 [ "$#" -eq 1 ] || exit 2
 BUNDLE_DIR=$(cd "$1" && pwd -P) || exit 1
-MODDIR=${KST_ACTIVE_DIR:-/data/adb/modules/kernelsu-tailscaled}
-TS_DIR=${TS_DIR:-/data/adb/kernelsu-tailscaled}
-KST_LEGACY_DIR=${KST_LEGACY_DIR:-/data/adb/tailscale}
-export BUNDLE_DIR MODDIR TS_DIR KST_LEGACY_DIR
+MODDIR=${TM_ACTIVE_DIR:-/data/adb/modules/TailMate}
+TS_DIR=${TS_DIR:-/data/adb/TailMate}
+TM_LEGACY_DIR=${TM_LEGACY_DIR:-/data/adb/tailscale}
+TM_PREDECESSOR_DIR=${TM_PREDECESSOR_DIR:-/data/adb/kernelsu-tailscaled}
+TM_PREDECESSOR_MODULE=${TM_PREDECESSOR_MODULE:-/data/adb/modules/kernelsu-tailscaled}
+export BUNDLE_DIR MODDIR TS_DIR TM_LEGACY_DIR TM_PREDECESSOR_DIR TM_PREDECESSOR_MODULE
 
 . "$BUNDLE_DIR/scripts/bundle-lib.sh"
-kst_verify_bundle "$BUNDLE_DIR" || exit 1
-case "$MODDIR" in /*) ;; *) kst_error invalid-active-directory; exit 1 ;; esac
-[ ! -L "$MODDIR" ] || { kst_error symlink-active-directory; exit 1; }
+tm_verify_bundle "$BUNDLE_DIR" || exit 1
+case "$MODDIR" in /*) ;; *) tm_error invalid-active-directory; exit 1 ;; esac
+[ ! -L "$MODDIR" ] || { tm_error symlink-active-directory; exit 1; }
 mkdir -p "$MODDIR" || exit 1
 MODDIR=$(cd "$MODDIR" && pwd -P) || exit 1
 export MODDIR
-kst_private_root || exit 1
+tm_private_root || exit 1
 . "$BUNDLE_DIR/tailscale/scripts/common.sh"
 . "$BUNDLE_DIR/scripts/activate-runtime.sh"
+. "$BUNDLE_DIR/scripts/migrate-legacy.sh"
 
-kst_install_complete() (
+tm_install_complete() (
   # Finish a pending engine rollback using the installed controller before
   # activating a different module generation or touching its manager view.
-  existing=$(kst_current) || exit 1
+  existing=$(tm_current) || exit 1
   if [ -d "$TS_DIR/engine-transaction" ] && [ -n "$existing" ]; then
     BUNDLE_DIR="$existing" sh "$existing/scripts/runtime-control.sh" engine-recover 9>&9 || exit 1
   fi
@@ -53,18 +56,20 @@ kst_install_complete() (
   chown 0:0 "$MODDIR" || exit 1
   chmod 0755 "$MODDIR" || exit 1
 
+  # A predecessor identity handed over now counts as already present below.
+  tm_handover_predecessor || exit 1
   wanted=1
-  if [ -f "$TS_DIR/migration-required" ] || ! kst_require_identity_choice; then wanted=0; fi
-  before=$(kst_current) || exit 1
+  if [ -f "$TS_DIR/migration-required" ] || ! tm_require_identity_choice; then wanted=0; fi
+  before=$(tm_current) || exit 1
   # KernelSU enables this module ID after customize; apply that intent now.
   rm -f "$MODDIR/disable" "$MODDIR/remove" || exit 1
-  kst_activate "$BUNDLE_DIR" "$wanted" || exit 1
-  selected=$(kst_current) || exit 1
+  tm_activate "$BUNDLE_DIR" "$wanted" || exit 1
+  selected=$(tm_current) || exit 1
   if [ "$wanted" = 1 ]; then
-    if [ "$selected" = "$before" ]; then kst_runtime "$selected" start || exit 1; fi
+    if [ "$selected" = "$before" ]; then tm_runtime "$selected" start || exit 1; fi
     rm -f "$TS_DIR/migration-awaiting-enable" || exit 1
   else
-    kst_runtime "$selected" stop || exit 1
+    tm_runtime "$selected" stop || exit 1
     set_lifecycle migration-required || exit 1
   fi
 
@@ -82,4 +87,4 @@ kst_install_complete() (
   fi
 )
 
-with_control_lock kst_install_complete
+with_control_lock tm_install_complete

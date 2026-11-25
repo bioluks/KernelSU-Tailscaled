@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 /** Cases mirror webroot-src/src/server.test.ts and taildrop.ts so both UIs accept the same input. */
 public final class ModuleInputTest {

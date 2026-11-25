@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 import android.app.Activity;
 import android.content.ClipData;
@@ -279,7 +279,7 @@ public final class ShareActivity extends Activity {
             shortcuts.add(new ShortcutInfo.Builder(this, target[0]).setShortLabel(target[1]).setLongLabel(target[1])
                     .setActivity(new ComponentName(this, MainActivity.class))
                     .setIcon(Icon.createWithResource(this, R.drawable.ic_module))
-                    .setCategories(Collections.singleton("io.github.bioluks.tailscaled.FILE_TARGET"))
+                    .setCategories(Collections.singleton("com.askingmeric.tailmate.FILE_TARGET"))
                     .setLongLived(true).setIntent(new Intent(this, MainActivity.class).setAction(Intent.ACTION_MAIN)).build());
         }
         try { manager.setDynamicShortcuts(shortcuts); } catch (IllegalArgumentException ignored) { }

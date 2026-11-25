@@ -20,8 +20,8 @@
 
 SYSTEM_DNS_FLAG="$TS_DIR/system-dns-enabled"
 SYSTEM_DNS_MARK="$TS_DIR/system-dns-applied"
-SYSTEM_DNS_CHAIN=KST_SYSDNS
-SYSTEM_DNS_CHAIN6=KST_SYSDNS6
+SYSTEM_DNS_CHAIN=TM_SYSDNS
+SYSTEM_DNS_CHAIN6=TM_SYSDNS6
 SYSTEM_DNS_DISCOVERED=
 SYSTEM_DNS_TARGET4=
 SYSTEM_DNS_TARGET6=
@@ -34,7 +34,7 @@ system_dns_owned() { [ -f "$SYSTEM_DNS_FLAG" ] || [ -f "$SYSTEM_DNS_MARK" ]; }
 system_dns_tool() { command -v "$1" >/dev/null 2>&1; }
 
 system_dns_cli() {
-  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" "$@"
+  bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" "$@"
 }
 
 
@@ -62,8 +62,8 @@ system_dns_desired() {
 
 system_dns_probe() {
   local output self answers
-  if [ -x "$KST_BUSYBOX" ]; then
-    output=$(bounded 3 "$KST_BUSYBOX" nslookup example.com "${SYSTEM_DNS_TARGET4}" 2>/dev/null)
+  if [ -x "$TM_BUSYBOX" ]; then
+    output=$(bounded 3 "$TM_BUSYBOX" nslookup example.com "${SYSTEM_DNS_TARGET4}" 2>/dev/null)
   else
     output=$(bounded 3 nslookup example.com "${SYSTEM_DNS_TARGET4}" 2>/dev/null)
   fi
@@ -74,8 +74,8 @@ system_dns_probe() {
   self=$(printf '%s\n' "$SYSTEM_DNS_JSON" |
     sed -n 's/.*"SelfDNSName":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
   if [ -n "$self" ] && [ "$self" != null ]; then
-    if [ -x "$KST_BUSYBOX" ]; then
-      answers=$(bounded 3 "$KST_BUSYBOX" nslookup "$self" "${SYSTEM_DNS_TARGET4}" 2>/dev/null)
+    if [ -x "$TM_BUSYBOX" ]; then
+      answers=$(bounded 3 "$TM_BUSYBOX" nslookup "$self" "${SYSTEM_DNS_TARGET4}" 2>/dev/null)
     else
       answers=$(bounded 3 nslookup "$self" "${SYSTEM_DNS_TARGET4}" 2>/dev/null)
     fi
@@ -94,7 +94,7 @@ system_dns_active_conflict() {
     ip6tables -t nat -S PREROUTING 2>/dev/null
     ip6tables -S OUTPUT 2>/dev/null
     ip6tables -S PREROUTING 2>/dev/null
-  } | grep -E -- '--dport 53' | grep -v -E -- "KST_SYSDNS" | head -n 1
+  } | grep -E -- '--dport 53' | grep -v -E -- "TM_SYSDNS" | head -n 1
 }
 
 # A dormant DNS module: a foreign chain whose own rules redirect port 53.
@@ -108,7 +108,7 @@ system_dns_foreign_rules() {
     iptables -t nat -S 2>/dev/null
     ip6tables -t nat -S 2>/dev/null
     ip6tables -S 2>/dev/null
-  } | grep -E -- '--dport 53' | grep -v -E -- 'KST_SYSDNS' |
+  } | grep -E -- '--dport 53' | grep -v -E -- 'TM_SYSDNS' |
     awk '$1 == "-A" && $2 !~ /^(OUTPUT|PREROUTING|POSTROUTING|INPUT|FORWARD)$/'
 }
 
@@ -121,12 +121,12 @@ system_dns_other_module_report() {
   [ -n "$rules" ] || return 0
   chains=$(printf '%s\n' "$rules" | awk '{print $2}' | sort -u)
   all=$({ iptables -t nat -S; ip6tables -t nat -S; ip6tables -S; iptables -S; } 2>/dev/null)
-  adb=${KST_ADB_ROOT:-/data/adb}
+  adb=${TM_ADB_ROOT:-/data/adb}
   for chain in $chains; do
     jumps=$(printf '%s\n' "$all" | grep -E -- "^-A (OUTPUT|PREROUTING|INPUT|FORWARD|POSTROUTING) .*-j $chain( |\$)" | head -n 3)
     owners=$(grep -l -s -- "$chain" "$adb"/service.d/* "$adb"/post-fs-data.d/* \
       "$adb"/modules/*/service.sh "$adb"/modules/*/post-fs-data.sh 2>/dev/null |
-      grep -v '/kernelsu-tailscaled/' | head -n 3)
+      grep -v '/TailMate/' | head -n 3)
     if [ -n "$jumps" ]; then
       printf 'Chain %s: ACTIVE, traffic is redirected now\n' "$chain"
     else

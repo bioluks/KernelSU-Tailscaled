@@ -1,3 +1,26 @@
+v4.0.0 (bioluks) - Renamed to TailMate
+
+- Rename the project from KernelSU-Tailscaled to TailMate. The module id is now
+  `TailMate` and its state lives in /data/adb/TailMate; the repository moved to
+  https://github.com/bioluks/TailMate (old URLs redirect).
+- Installing 4.0.0 over KernelSU-Tailscaled hands over automatically: the old
+  `kernelsu-tailscaled` module is stopped, its node identity, settings and
+  pending Taildrop files are copied (not moved) from /data/adb/kernelsu-tailscaled
+  to /data/adb/TailMate, and the old module is marked for removal at the next
+  reboot. No re-login is needed.
+- The companion app is now `com.askingmeric.tailmate`, labelled TailMate. Android
+  treats it as a new app: uninstall the old Tailscaled Companion
+  (io.github.bioluks.tailscaled) and install the TailMate APK.
+- The update feed is now update.json. update-kernelsu.json mirrors it so existing
+  KernelSU-Tailscaled installs are offered 4.0.0.
+- Detect the busybox of KernelSU, KernelSU-Next, Magisk and APatch. KernelSU and
+  KernelSU-Next are verified on device; Magisk and APatch are expected to work
+  but not yet verified.
+- Clarify licensing: the bundled hev-socks5-tunnel helper is MIT licensed.
+- Remove the unused KernelSU module store tooling (module.yaml, store workflow
+  and submission scripts).
+- Version code 40000000 advances v3.6.0_tailscale1.104.7; the engine stays at 1.104.7.
+
 v3.6.0 (bioluks) - Companion module settings, in-app panel, and Taildrop history
 
 - Add a native Module settings screen to the companion covering every module

@@ -5,7 +5,7 @@ SCRIPT_DIR=${0%/*}
 . "$SCRIPT_DIR/system-dns.sh"
 ensure_dirs || exit 1
 exec 9>&-
-unset KST_LOCK_HELD
+unset TM_LOCK_HELD
 exec 8>"$RUN_DIR/supervisor.lock" || exit 1
 flock_command -n 8 || exit 0
 # Component teardown belongs to the controller, including when it holds FD 9.
@@ -24,36 +24,36 @@ reconcile() {
   [ "$owner" = "$supervisor_owner" ] && supervisor_health || return 10
   IFS= read -r wanted < "$RUN_DIR/wanted" 2>/dev/null || wanted=
   if module_disabled || [ "$wanted" != 1 ]; then
-    "$KST_SHELL" "$TAILDROP_SCRIPT" stop 9>&9 || return 1
-    "$KST_SHELL" "$WEB_SCRIPT" stop 9>&9 || return 1
-    "$KST_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || return 1
-    "$KST_SHELL" "$DAEMON_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$TAILDROP_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$WEB_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$DAEMON_SCRIPT" stop 9>&9 || return 1
     return 10
   fi
   if ! load_config; then set_lifecycle failed; log ERROR "$CONFIG_ERROR"; return 1; fi
   if ! daemon_running; then
-    "$KST_SHELL" "$TAILDROP_SCRIPT" stop 9>&9 || return 1
-    "$KST_SHELL" "$WEB_SCRIPT" stop 9>&9 || return 1
-    "$KST_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || return 1
-    "$KST_SHELL" "$DAEMON_SCRIPT" stop 9>&9 || return 1
-    if ! "$KST_SHELL" "$DAEMON_SCRIPT" start 9>&9; then
+    "$TM_SHELL" "$TAILDROP_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$WEB_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$DAEMON_SCRIPT" stop 9>&9 || return 1
+    if ! "$TM_SHELL" "$DAEMON_SCRIPT" start 9>&9; then
       set_lifecycle failed
       return 1
     fi
-    "$KST_SHELL" "$TUNNEL_SCRIPT" start 9>&9 || log WARN 'Userspace helper recovery failed'
-    "$KST_SHELL" "$WEB_SCRIPT" start 9>&9 || log WARN 'Official web panel recovery failed'
-    "$KST_SHELL" "$TAILDROP_SCRIPT" start 9>&9 || log WARN 'Taildrop receiver recovery unavailable; inspect logs and shared storage'
+    "$TM_SHELL" "$TUNNEL_SCRIPT" start 9>&9 || log WARN 'Userspace helper recovery failed'
+    "$TM_SHELL" "$WEB_SCRIPT" start 9>&9 || log WARN 'Official web panel recovery failed'
+    "$TM_SHELL" "$TAILDROP_SCRIPT" start 9>&9 || log WARN 'Taildrop receiver recovery unavailable; inspect logs and shared storage'
     set_lifecycle running
     return 0
   fi
   # API or native route failures are observable degradation, not process crashes.
   if [ "$MODE" = userspace ] && ! owned_alive "$TUNNEL_PID" "$TUNNEL_BIN"; then
-    "$KST_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || return 1
-    "$KST_SHELL" "$TUNNEL_SCRIPT" start 9>&9 || log WARN 'Userspace helper recovery failed'
+    "$TM_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || return 1
+    "$TM_SHELL" "$TUNNEL_SCRIPT" start 9>&9 || log WARN 'Userspace helper recovery failed'
   fi
-  if ! web_running; then "$KST_SHELL" "$WEB_SCRIPT" start 9>&9 || log WARN 'Official web panel recovery failed'; fi
+  if ! web_running; then "$TM_SHELL" "$WEB_SCRIPT" start 9>&9 || log WARN 'Official web panel recovery failed'; fi
   if ! taildrop_health; then
-    "$KST_SHELL" "$TAILDROP_SCRIPT" start 9>&9 || return 1
+    "$TM_SHELL" "$TAILDROP_SCRIPT" start 9>&9 || return 1
   fi
   return 11
 }
@@ -68,7 +68,7 @@ while :; do
   [ "$result" != 10 ] || exit 0
   # Cosmetic status and staged-install verification are not health checks.
   if [ "$maintenance_in" -le 0 ]; then
-    if [ -f "$MODDIR/update" ] && [ -d "$KST_STAGED_DIR" ]; then
+    if [ -f "$MODDIR/update" ] && [ -d "$TM_STAGED_DIR" ]; then
       sh "$BUNDLE_DIR/scripts/hot-finalize.sh" >/dev/null 2>&1 || true
     fi
     sh "$BUNDLE_DIR/scripts/status-summary.sh" >/dev/null 2>&1 || true

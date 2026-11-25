@@ -1,25 +1,27 @@
-[![bioluks - KernelSU-Tailscaled](https://img.shields.io/static/v1?label=bioluks&message=KernelSU-Tailscaled&color=blue&logo=github)](https://github.com/bioluks/KernelSU-Tailscaled)
-[![Build, Verify, and Release](https://github.com/bioluks/KernelSU-Tailscaled/actions/workflows/release.yml/badge.svg?branch=master)](https://github.com/bioluks/KernelSU-Tailscaled/actions/workflows/release.yml)
-[![Total downloads](https://img.shields.io/github/downloads/bioluks/KernelSU-Tailscaled/total)](https://github.com/bioluks/KernelSU-Tailscaled/releases)
-[![Latest stable release](https://img.shields.io/github/v/release/bioluks/KernelSU-Tailscaled?color=blue)](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest)
-[![Open issues](https://img.shields.io/github/issues/bioluks/KernelSU-Tailscaled)](https://github.com/bioluks/KernelSU-Tailscaled/issues)
+[![bioluks - TailMate](https://img.shields.io/static/v1?label=bioluks&message=TailMate&color=blue&logo=github)](https://github.com/bioluks/TailMate)
+[![Build, Verify, and Release](https://github.com/bioluks/TailMate/actions/workflows/release.yml/badge.svg?branch=master)](https://github.com/bioluks/TailMate/actions/workflows/release.yml)
+[![Total downloads](https://img.shields.io/github/downloads/bioluks/TailMate/total)](https://github.com/bioluks/TailMate/releases)
+[![Latest stable release](https://img.shields.io/github/v/release/bioluks/TailMate?color=blue)](https://github.com/bioluks/TailMate/releases/latest)
+[![Open issues](https://img.shields.io/github/issues/bioluks/TailMate)](https://github.com/bioluks/TailMate/issues)
 
-# KernelSU-Tailscaled
+# TailMate
 
 Run a Tailscale-derived daemon on rooted Android without occupying Android's
-VPN slot. This fork extends the upstream KernelSU module with a native Android
+VPN slot. TailMate (formerly KernelSU-Tailscaled) is a root module for
+KernelSU, KernelSU-Next, Magisk and APatch. This fork extends the upstream
+KernelSU-Tailscaled module with a native Android
 companion, system-share integration, automatic Taildrop delivery, English/Chinese
 interfaces, integrated Headscale sign-in, and lower-overhead supervision.
 
-Download the [latest stable module and optional companion APK](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
+Download the [latest stable module and optional companion APK](https://github.com/bioluks/TailMate/releases/latest).
 The module works on its own; the companion adds native controls and Android file
 sharing using the same connection, without another VPN, daemon or login.
 
 Independent Forgejo source and releases:
-[GitScape](https://git.dreamscape.one/execd/KernelSU-Tailscaled).
+[GitScape](https://git.dreamscape.one/execd/TailMate).
 For companion-only automatic updates, use the
 [F-Droid repositories or Obtainium imports](docs/distribution/companion-updates.md).
-These channels do not install or update the KernelSU module.
+These channels do not install or update the module.
 
 ## What This Fork Adds
 
@@ -58,24 +60,26 @@ line, this also means native TUN networking and integrated management rather
 than its documented userspace/proxy-based, terminal-led setup.
 
 Based on those projects, with upstream credits and licensing retained. Maintained
-here by bioluks; not an official Tailscale or KernelSU product. The bundled
-engine is built from Tailscale 1.104.7 with small, reproducible Android
-compatibility patches; it is not an unmodified official release binary.
-The legacy Magisk-Tailscaled v1 update channel is retired; only the
-`kernelsu-tailscaled` module line is maintained here. Official store review is
-separate.
+here by bioluks; not an official Tailscale, KernelSU, Magisk or APatch product.
+The bundled engine is built from Tailscale 1.104.7 with small, reproducible
+Android compatibility patches; it is not an unmodified official release binary.
+The legacy Magisk-Tailscaled v1 update channel is retired. TailMate was named
+KernelSU-Tailscaled (module ID `kernelsu-tailscaled`) until 3.6.0; see
+[Coming from KernelSU-Tailscaled](#coming-from-kernelsu-tailscaled).
 
 ## Identity And Compatibility
 
 | Item | Value |
 | --- | --- |
-| Module ID | `kernelsu-tailscaled` |
-| Source | [bioluks/KernelSU-Tailscaled](https://github.com/bioluks/KernelSU-Tailscaled) |
-| Persistent data | `/data/adb/kernelsu-tailscaled` |
+| Module ID | `TailMate` |
+| Source | [bioluks/TailMate](https://github.com/bioluks/TailMate) |
+| Persistent data | `/data/adb/TailMate` |
+| Companion package | `com.askingmeric.tailmate` |
+| Predecessor ID | `kernelsu-tailscaled` (state `/data/adb/kernelsu-tailscaled`), handed over automatically |
 | Legacy ID | `magisk-tailscaled` |
 | Legacy data | `/data/adb/tailscale`, read only by explicit migration |
 | Architectures | ARM and ARM64 |
-| Primary manager | KernelSU with WebUI support |
+| Managers | KernelSU and KernelSU-Next (verified on device); Magisk and APatch expected to work, not yet verified on device |
 
 The combined ARM64 build has been exercised on a OnePlus 9 Pro (LE2123).
 Earlier upstream testing also targeted OnePlus PKX110 and Xiaomi nezha. Host
@@ -94,11 +98,12 @@ networking remain prerequisites; arbitrary kernels/ROMs are not guaranteed.
 
 ## Install And Activate
 
-1. Obtain a ZIP from the [current release](https://github.com/bioluks/KernelSU-Tailscaled/releases/latest).
+1. Obtain a ZIP from the [current release](https://github.com/bioluks/TailMate/releases/latest).
    The universal ZIP includes both architectures; an ARM64-only ZIP is also built.
-2. Install the ZIP through KernelSU Manager, or `ksud module install ZIP`.
+2. Install the ZIP through your root manager (KernelSU/KernelSU-Next Manager,
+   Magisk or APatch), or `ksud module install ZIP` on KernelSU.
    The installer verifies the complete bundle, switches the owned runtime, and
-   publishes the KernelSU WebUI and Action entrypoints. Existing module login and
+   publishes the WebUI and Action entrypoints. Existing module login and
    configuration are preserved. No post-install patch script is needed.
 3. Installation starts the new runtime immediately unless an old login still
    requires explicit migration. No script requests or performs an Android reboot.
@@ -109,21 +114,36 @@ networking remain prerequisites; arbitrary kernels/ROMs are not guaranteed.
 Hot installation switches scripts and binaries together and publishes the
 complete Manager view from that same ZIP. Reopen an already-open WebUI to load
 the new assets. The Tailscale service briefly restarts; Android does not.
-KernelSU can still offer Reboot for its separate staged update. Check **Updates
+The manager can still offer Reboot for its separate staged update. Check **Updates
 → Current runtime** and service health to distinguish a successful runtime switch
 from a failed install. Automatic Manager staging cleanup waits for a tailnet
 IPv4 address and verifies that the installed hooks and WebUI match the update.
 **Apply staged runtime** switches only the runtime; routine ZIP installation
 does not need that extra step.
 
-Existing `kernelsu-tailscaled` users can install this project's ZIP over their
-current module. The ID and persistent data directory are unchanged; do not
-uninstall or delete state first. Installing this ZIP switches subsequent module
-update checks to this repository. Upstream installations do not automatically
-discover this project's releases; the first switch is a manual ZIP install.
-Module versions embed the bundled engine: `3.6.0_tailscale1.104.7` bundles
-Tailscale 1.104.7 with `versionCode=30060000`, advancing v3.5.0_tailscale1.104.7.
-Existing login state and data formats are unchanged.
+Module versions embed the bundled engine: `4.0.0_tailscale1.104.7` bundles
+Tailscale 1.104.7 with `versionCode=40000000`.
+
+## Coming From KernelSU-Tailscaled
+
+TailMate 4.0.0 is the renamed continuation of KernelSU-Tailscaled 3.x. The
+module ID, data directory and companion package changed, so it installs as a new
+module next to the old one. Install the TailMate ZIP over a running
+KernelSU-Tailscaled; do not uninstall or delete anything first. The installer
+automatically:
+
+1. stops the old `kernelsu-tailscaled` module;
+2. copies the node identity, settings and pending Taildrop files from
+   `/data/adb/kernelsu-tailscaled` to `/data/adb/TailMate` (the old state is
+   copied, not moved);
+3. marks the old module for removal at the next reboot.
+
+The node keeps its identity; no re-login is needed. The old companion app
+(`io.github.bioluks.tailscaled`) does not work with TailMate and cannot be
+updated in place: uninstall it and install the TailMate companion
+(`com.askingmeric.tailmate`) from the same release. Existing installations keep
+receiving update notices through the old update feed, which now points to
+TailMate.
 
 ## WebUI Language And Headscale
 
@@ -152,7 +172,7 @@ The equivalent root command reads one URL line from standard input:
 
 ```sh
 printf '%s\n' 'https://headscale.example.com' | \
-  sh /data/adb/modules/kernelsu-tailscaled/control.sh login-server
+  sh /data/adb/modules/TailMate/control.sh login-server
 ```
 
 Its JSON reply includes the selected `controlURL` and a registration `authURL`
@@ -186,7 +206,7 @@ One supervised `tailscale file get --loop --conflict=rename` process waits for
 file-arrival notifications; no periodic retrieval command or inbox scan is added.
 Existing files are never overwritten: duplicate names receive numbered suffixes.
 If storage is unavailable, locked or full, files remain in the private inbox
-under `/data/adb/kernelsu-tailscaled/files/` until they can be retrieved. The
+under `/data/adb/TailMate/files/` until they can be retrieved. The
 WebUI shows receiver availability; **Logs** includes the receiver's output.
 
 Choose a folder under `/sdcard/` or Android's `/storage/` shared storage, not a
@@ -197,7 +217,7 @@ inbox while automatic delivery is active.
 To send from the phone, use the module's CLI and socket:
 
 ```sh
-TS=/data/adb/kernelsu-tailscaled
+TS=/data/adb/TailMate
 "$TS/current/bin/tailscale" --socket="$TS/run/tailscaled.sock" \
   file cp /sdcard/Download/example.txt <peer-name-or-tailnet-ip>:
 ```
@@ -208,14 +228,14 @@ the [official documentation](https://tailscale.com/docs/features/taildrop).
 
 ## Optional Android Companion
 
-Install the `KernelSU-Tailscaled-companion-*.apk` and matching module ZIP from
+Install the `TailMate-companion-*.apk` and matching module ZIP from
 the same GitHub release. The companion requires Android 8.0 or newer.
-Open **Tailscaled Companion** and grant it root access in KernelSU. The companion
+Open **TailMate** and grant it root access in your root manager. The companion
 uses the module's effective Tailscale engine, socket and existing login; it does
 not create a VPN, second daemon or separate account connection.
 
 - In Files, Photos or another app, select one or more files and choose
-  **Share → Tailscaled Companion → device**. A rounded bottom sheet keeps the
+  **Share → TailMate → device**. A rounded bottom sheet keeps the
   source application visible behind a dimmed overlay. Tapping a device sends
   immediately by default; enable **Settings → Confirm before sending** for a
   separate review step. Alternatively use **Choose files to send** in the app.
@@ -234,7 +254,7 @@ not create a VPN, second daemon or separate account connection.
   device picker is loaded. Android controls whether and where Direct Share
   suggestions appear; the in-app picker always remains available.
 - Native controls provide status, enable/disable, restart and logs.
-  **Module settings** covers every module setting from the KernelSU WebUI:
+  **Module settings** covers every module setting from the module WebUI:
   control server / Headscale sign-in, Taildrop folder, Tailscale DNS,
   system-wide DNS, runtime and engine updates, staged-runtime apply, diagnostic
   records and legacy migration, so the manager WebUI is not needed day to day.
@@ -266,8 +286,9 @@ and cannot replace the published release APK without uninstalling the app.
 
 ## Migrate An Existing Login
 
-Existing `kernelsu-tailscaled` installations, including beta.5, install the current release
-normally and keep their login state. No migration is needed within this module ID.
+Existing TailMate installations install the current release normally and keep
+their login state. KernelSU-Tailscaled installations are handed over
+automatically; see [Coming from KernelSU-Tailscaled](#coming-from-kernelsu-tailscaled).
 
 The old `magisk-tailscaled` ID is retired. Its `update.json` endpoint has been
 removed; it does not offer an automatic cross-ID upgrade. The following is a
@@ -375,7 +396,7 @@ isolated panel exercised successful HTTP recovery while still logged out.
 This is CPU evidence, not a screen-off battery-life or tunnel-mode benchmark.
 
 ```text
-/data/adb/modules/kernelsu-tailscaled/control.sh
+/data/adb/modules/TailMate/control.sh
   {enable|disable|toggle|start|stop|restart|status|status-json|logs|
    web-restart|diagnostics|migration-status|migrate-legacy|apply-staged|login-server}
 ```
@@ -399,20 +420,22 @@ npm run typecheck
 npm test
 npm run build
 cd ..
-python3 scripts/build_engine.py  # Python 3.12+ and Go; toolchain/source pinned
-sh scripts/build-release.sh --use-existing-binaries --output dist
+python3 scripts/build_engine.py  # Go 1.27.4 on Linux; output must match engine/engine-build.json
+sh scripts/build-release.sh --output dist
 ```
 
 Run process/lifecycle behavior tests on Linux or WSL; Windows-only unit tests skip
 those tests. Packages normalize LF, ordering, timestamps and executable modes.
 Binary payload manifests and architecture-specific installed-bundle manifests are
 verified independently. CI rebuilds all ZIPs twice and compares their bytes.
-The engine recipe verifies upstream source and patches and records output
-provenance. CI runs Linux engine regressions and compares all four rebuilt
-engines with committed payloads. See [the engine build contract](engine/README.md).
+The engine binaries are not committed: the recipe verifies upstream source and
+patches, builds them, and must reproduce the committed lock
+(`engine/engine-build.json`) byte for byte. CI runs Linux engine regressions and
+builds the engines from source for every package. See
+[the engine build contract](engine/README.md).
 
 The default `master` branch and feature branches build
-artifacts without publishing. `v3.*-*` tags publish as prereleases; stable tags
+artifacts without publishing. `v<major>.*-*` tags publish as prereleases; stable tags
 additionally require `STABLE_RELEASE_APPROVED=true` and
 the `source-release` environment. Enable repository release immutability before
 tag publication, then set `SOURCE_IMMUTABILITY_CONFIRMED=true` after checking the
@@ -428,25 +451,13 @@ the tag. It verifies the successful build's commit and all existing draft assets
 before publishing; already published immutable assets are verified, not replaced.
 
 Project releases are available independently on
-[GitHub](https://github.com/bioluks/KernelSU-Tailscaled/releases) and
-[GitScape](https://git.dreamscape.one/execd/KernelSU-Tailscaled/releases).
+[GitHub](https://github.com/bioluks/TailMate/releases) and
+[GitScape](https://git.dreamscape.one/execd/TailMate/releases).
 Neither Forgejo repository is a mirror; source changes and accepted releases are
 published explicitly. Companion F-Droid channels refresh stable APKs from their
 own host. See [update channels and maintenance](docs/distribution/companion-updates.md).
-The upstream store submission is historical and does not approve this independently
-maintained project; store publication remains disabled unless separately reviewed
-and authorized.
-
-Official store requirements are documented in
-[the research record](docs/research/2026-09-07-kernelsu-store-requirements.md).
-Submission requires manual review and is not performed by the build workflow.
-After approval, configure the store repository's default-branch metadata,
-immutable releases, a protected `kernelsu-store` environment, and a separately
-scoped `KERNELSU_STORE_TOKEN` with destination contents write and administration
-read permissions. Set `STORE_PUBLICATION_ENABLED=true` only after those steps.
-The manual store workflow accepts a previously verified immutable stable source
-release and publishes **one universal ZIP**, never an architecture-specific
-default download. It never replaces existing assets or tags.
+TailMate is not submitted to the KernelSU module store; release builds publish
+only to the GitHub and Forgejo releases above.
 
 ## Credits And License
 
@@ -454,7 +465,9 @@ default download. It never replaces existing assets or tags.
 - [KernelSU](https://github.com/tiann/KernelSU): root manager and WebUI bridge.
 - [WayneShao/KernelSU-Tailscaled](https://github.com/WayneShao/KernelSU-Tailscaled):
   upstream module, lifecycle implementation and retained release tooling.
-- [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel): userspace helper.
+  TailMate continues this project's fork, formerly published as
+  bioluks/KernelSU-Tailscaled.
+- [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) (MIT): userspace helper.
 - [ryukora/Magisk-Tailscaled](https://github.com/ryukora/Magisk-Tailscaled),
   ANASFANANI, and prior contributors: original module and retained history.
 

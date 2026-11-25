@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 import org.json.JSONArray;
 import org.json.JSONException;

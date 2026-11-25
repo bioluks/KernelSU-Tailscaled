@@ -42,8 +42,8 @@ def good_entries() -> dict[str, bytes]:
     return with_bundles(
         {
             "module.prop": (
-                b"id=kernelsu-tailscaled\n"
-                b"name=KernelSU-Tailscaled\n"
+                b"id=TailMate\n"
+                b"name=TailMate\n"
                 b"version=1.102.3.1\n"
                 b"versionCode=011020301\n"
                 b"author=test\n"
@@ -188,7 +188,7 @@ class PackageVerifierTests(unittest.TestCase):
     def test_rejects_invalid_module_id(self) -> None:
         entries = good_entries()
         entries["module.prop"] = entries["module.prop"].replace(
-            b"id=kernelsu-tailscaled", b"id=wrong-module"
+            b"id=TailMate", b"id=wrong-module"
         )
         self.assert_rejected(entries, "unexpected module id")
 

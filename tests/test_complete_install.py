@@ -26,7 +26,7 @@ fixture_command() {
       touch "$RUN_DIR/fake-running"
       ;;
     stop|disable)
-      printf '%s:%s\n' "$(sed -n 's/^versionCode=//p' "$BUNDLE_DIR/module.prop")" "${KST_STOP_TIMEOUT:-3}" >> "$TRACE.stop-timeouts"
+      printf '%s:%s\n' "$(sed -n 's/^versionCode=//p' "$BUNDLE_DIR/module.prop")" "${TM_STOP_TIMEOUT:-3}" >> "$TRACE.stop-timeouts"
       printf '0\n' > "$RUN_DIR/wanted"
       rm -f "$RUN_DIR/fake-running"
       ;;
@@ -43,7 +43,7 @@ with_control_lock fixture_command "$1"
 @unittest.skipUnless(os.name == "posix", "Execute under Linux/WSL for POSIX installer behavior")
 class CompleteInstallTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix="kst-complete-install-")
+        temporary = tempfile.TemporaryDirectory(prefix="tm-complete-install-")
         self.addCleanup(temporary.cleanup)
         self.base = Path(temporary.name)
         self.source = self.base / "source"
@@ -65,13 +65,13 @@ class CompleteInstallTests(unittest.TestCase):
         output = self.base / name
         built = self.builder.build(self.source, output)
         self.assertEqual(0, built.returncode, built.stdout + built.stderr)
-        return next(output.glob("KernelSU-Tailscaled-v*.zip"))
+        return next(output.glob("TailMate-v*.zip"))
 
     def device(self, name):
         base = self.base / name
-        active = base / "modules/kernelsu-tailscaled"
+        active = base / "modules/TailMate"
         active.mkdir(parents=True)
-        (active / "module.prop").write_text("id=kernelsu-tailscaled\n")
+        (active / "module.prop").write_text("id=TailMate\n")
         (active / "update").touch()
         commands = base / "commands"
         commands.mkdir()
@@ -79,13 +79,13 @@ class CompleteInstallTests(unittest.TestCase):
         if os.geteuid() != 0:
             (commands / "chown").write_text("#!/bin/sh\nexit 0\n")
             (commands / "chown").chmod(0o755)
-        return dict(os.environ, KST_ACTIVE_DIR=str(active), MODDIR=str(active),
-                    TS_DIR=str(base / "state"), KST_LEGACY_DIR=str(base / "legacy"),
-                    KST_LEGACY_MODULE=str(base / "modules/magisk-tailscaled"),
-                    MODPATH=str(base / "modules_update/kernelsu-tailscaled"),
-                    KST_STAGED_DIR=str(base / "modules_update/kernelsu-tailscaled"),
+        return dict(os.environ, TM_ACTIVE_DIR=str(active), MODDIR=str(active),
+                    TS_DIR=str(base / "state"), TM_LEGACY_DIR=str(base / "legacy"),
+                    TM_LEGACY_MODULE=str(base / "modules/magisk-tailscaled"),
+                    MODPATH=str(base / "modules_update/TailMate"),
+                    TM_STAGED_DIR=str(base / "modules_update/TailMate"),
                     TRACE=str(base / "trace"), BOOTMODE="true", ARCH="arm64",
-                    KST_LOCK_TIMEOUT="2", PATH=str(commands) + ":" + os.environ["PATH"])
+                    TM_LOCK_TIMEOUT="2", PATH=str(commands) + ":" + os.environ["PATH"])
 
     def install(self, env, archive=None, ok=True):
         archive = archive or self.archive
@@ -105,9 +105,9 @@ set_perm_recursive() {
 }
 . "$MODPATH/customize.sh"
 # KernelSU retains only its active placeholder and does not promote staged files.
-rm -f "$MODPATH/customize.sh" "$KST_ACTIVE_DIR/disable" "$KST_ACTIVE_DIR/remove"
-cp -f "$MODPATH/module.prop" "$KST_ACTIVE_DIR/module.prop"
-touch "$KST_ACTIVE_DIR/update"
+rm -f "$MODPATH/customize.sh" "$TM_ACTIVE_DIR/disable" "$TM_ACTIVE_DIR/remove"
+cp -f "$MODPATH/module.prop" "$TM_ACTIVE_DIR/module.prop"
+touch "$TM_ACTIVE_DIR/update"
 '''
         result = subprocess.run(["sh", "-c", harness], env=dict(env, ZIPFILE=str(archive)),
                                 capture_output=True, text=True, timeout=30)
@@ -115,14 +115,14 @@ touch "$KST_ACTIVE_DIR/update"
         return result
 
     def presentation(self, env):
-        active = Path(env["KST_ACTIVE_DIR"])
+        active = Path(env["TM_ACTIVE_DIR"])
         files = [active / name for name in HOOKS]
         files.extend(file for file in (active / "webroot").rglob("*") if file.is_file())
         return {file.relative_to(active).as_posix(): hashlib.sha256(file.read_bytes()).hexdigest()
                 for file in files if file.exists()}
 
     def assert_usable(self, env):
-        active = Path(env["KST_ACTIVE_DIR"])
+        active = Path(env["TM_ACTIVE_DIR"])
         current = (Path(env["TS_DIR"]) / "current").resolve()
         self.assertEqual(Path(env["TS_DIR"]) / "releases", current.parent)
         self.assertEqual(0o755, active.stat().st_mode & 0o777)
@@ -173,13 +173,13 @@ touch "$KST_ACTIVE_DIR/update"
         (state / "tailscaled.state").write_bytes(identity)
         (state / "config/module.conf").write_bytes(config)
         (state / "migration-awaiting-enable").touch()
-        legacy = Path(env["KST_LEGACY_DIR"])
+        legacy = Path(env["TM_LEGACY_DIR"])
         legacy.mkdir()
         (legacy / "tailscaled.state").write_bytes(b"legacy identity must not replace the selected identity")
         self.install(env)
         before = (state / "current").resolve()
         (state / "run/fake-running").unlink()
-        active = Path(env["KST_ACTIVE_DIR"])
+        active = Path(env["TM_ACTIVE_DIR"])
         (active / "webroot/obsolete.js").write_text("stale asset")
         (active / "disable").touch()
         (active / "remove").touch()
@@ -197,9 +197,9 @@ touch "$KST_ACTIVE_DIR/update"
         for blocked in ("legacy", "pending"):
             with self.subTest(blocked=blocked):
                 env = self.device(blocked)
-                legacy = Path(env["KST_LEGACY_DIR"])
+                legacy = Path(env["TM_LEGACY_DIR"])
                 legacy.mkdir()
-                old = Path(env["KST_LEGACY_MODULE"])
+                old = Path(env["TM_LEGACY_MODULE"])
                 old.mkdir()
                 (old / "control.sh").write_text('#!/bin/sh\ntouch "$TRACE.legacy"\n')
                 original = b'{"fixture":"legacy-identity"}\n'
@@ -210,7 +210,7 @@ touch "$KST_ACTIVE_DIR/update"
                 self.install(env)
                 state = Path(env["TS_DIR"])
                 self.assertTrue((state / "current").is_symlink())
-                self.assertTrue((Path(env["KST_ACTIVE_DIR"]) / "webroot/index.html").is_file())
+                self.assertTrue((Path(env["TM_ACTIVE_DIR"]) / "webroot/index.html").is_file())
                 self.assertFalse((state / "run/fake-running").exists())
                 self.assertFalse((state / "tailscaled.state").exists())
                 self.assertFalse(Path(env["TRACE"] + ".legacy").exists())
@@ -242,7 +242,7 @@ touch "$KST_ACTIVE_DIR/update"
         self.install(env)
         before = self.presentation(env)
         trace = Path(env["TRACE"]).read_bytes()
-        command = Path(env["KST_ACTIVE_DIR"]).parents[1] / "commands/cp"
+        command = Path(env["TM_ACTIVE_DIR"]).parents[1] / "commands/cp"
         command.write_text('#!/bin/sh\ncase "$*" in *webroot*) exit 47;; esac\nexec /bin/cp "$@"\n')
         command.chmod(0o755)
         self.install(env, ok=False)
@@ -278,9 +278,9 @@ touch "$KST_ACTIVE_DIR/update"
         for override in (None, "2"):
             with self.subTest(override=override):
                 env = self.device(f"timeout-{override}")
-                env.pop("KST_STOP_TIMEOUT", None)
+                env.pop("TM_STOP_TIMEOUT", None)
                 if override is not None:
-                    env["KST_STOP_TIMEOUT"] = override
+                    env["TM_STOP_TIMEOUT"] = override
                 self.install(env)
                 journal = Path(env["TS_DIR"]) / "engine-transaction"
                 journal.mkdir()
@@ -296,14 +296,14 @@ touch "$KST_ACTIVE_DIR/update"
     @unittest.skipUnless(shutil.which("mksh") and shutil.which("busybox"), "Requires mksh and BusyBox")
     def test_complete_install_under_mksh_and_busybox_preserves_control_lock(self):
         env = self.device("android-shell")
-        commands = Path(env["KST_ACTIVE_DIR"]).parents[1] / "commands"
+        commands = Path(env["TM_ACTIVE_DIR"]).parents[1] / "commands"
         (commands / "sh").symlink_to(shutil.which("mksh"))
         # Ubuntu BusyBox omits flock; retain its real awk/mv and use host flock.
         busybox = commands / "busybox"
         busybox.write_text('#!/bin/sh\nif [ "$1" = flock ]; then shift; exec flock "$@"; fi\n'
                            f'exec "{shutil.which("busybox")}" "$@"\n')
         busybox.chmod(0o755)
-        env["KST_BUSYBOX"] = str(busybox)
+        env["TM_BUSYBOX"] = str(busybox)
         self.install(env)
         self.assert_usable(env)
 

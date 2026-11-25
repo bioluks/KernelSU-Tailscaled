@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Build the native companion with only Python, a JDK, and Android SDK tools."""
+"""Build the TailMate companion APK with only Python, a JDK, and Android SDK tools.
+
+Default mode signs with the release key from ANDROID_KEYSTORE et al.; --debug signs
+with a private developer key; --unsigned emits the zipaligned unsigned release APK
+(for F-Droid's build server, which signs or verifies it separately).
+"""
 
 import argparse
 import os
@@ -22,7 +27,13 @@ SIGNING_VARIABLES = (
     "ANDROID_KEYSTORE", "ANDROID_KEY_ALIAS",
     "ANDROID_KEYSTORE_PASSWORD", "ANDROID_KEY_PASSWORD",
 )
-DEBUG_KEYSTORE = Path.home() / ".local/share/kernelsu-tailscaled/debug.keystore"
+DEBUG_KEYSTORE = Path.home() / ".local/share/tailmate/debug.keystore"
+REPRODUCIBLE_BUILD_TOOLS = "36.0.0"
+REPRODUCIBLE_JDK = "25"
+# apksigner >= 35 writes signatures that F-Droid's signature copying
+# (apksigcopier) cannot reproduce, so f-droid.org would refuse to publish the
+# developer-signed APK: https://f-droid.org/docs/Reproducible_Builds/
+SIGNING_BUILD_TOOLS = "34.0.0"
 
 
 def run(command: list[str | Path], *, env: dict[str, str] | None = None,
@@ -58,14 +69,20 @@ def module_version() -> tuple[str, str]:
     return version, str(int(code))
 
 
-def sdk_tools(sdk: Path) -> tuple[Path, Path]:
+def sdk_tools(sdk: Path, pinned: bool) -> tuple[Path, Path]:
+    # Release and unsigned APKs must be byte-identical across hosts so f-droid.org
+    # can verify and ship the developer-signed APK; that requires these exact tools.
     platforms = [sdk / "platforms" / name / "android.jar"
-                 for name in ("android-36", "android-36.1")]
+                 for name in (("android-36",) if pinned else ("android-36", "android-36.1"))]
     android_jar = next((path for path in platforms if path.is_file()), None)
     if android_jar is None:
-        raise ValueError("Install SDK platform android-36 (android-36.1 is also supported)")
+        raise ValueError("Install SDK platform android-36")
     requested = os.environ.get("ANDROID_BUILD_TOOLS_VERSION")
-    if requested:
+    if pinned:
+        if requested and requested != REPRODUCIBLE_BUILD_TOOLS:
+            raise ValueError(f"Release and unsigned builds require Build Tools {REPRODUCIBLE_BUILD_TOOLS}")
+        candidates = [sdk / "build-tools" / REPRODUCIBLE_BUILD_TOOLS]
+    elif requested:
         if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", requested):
             raise ValueError("ANDROID_BUILD_TOOLS_VERSION must name a stable Build Tools version")
         candidates = [sdk / "build-tools" / requested]
@@ -79,19 +96,33 @@ def sdk_tools(sdk: Path) -> tuple[Path, Path]:
                   if all((path / tool).is_file()
                          for tool in ("aapt2", "d8", "zipalign", "apksigner"))), None)
     if tools is None:
-        raise ValueError("Install Android SDK Build Tools with aapt2, d8, zipalign, and apksigner")
+        raise ValueError("Install Android SDK Build Tools "
+                         f"{REPRODUCIBLE_BUILD_TOOLS if pinned else ''} with aapt2, d8, zipalign, and apksigner")
     return tools, android_jar
 
 
-def jdk_tool(name: str) -> Path:
+def signing_tools(sdk: Path) -> Path:
+    signer = sdk / "build-tools" / SIGNING_BUILD_TOOLS / "apksigner"
+    if not signer.is_file():
+        raise ValueError(f"Install Android SDK Build Tools {SIGNING_BUILD_TOOLS} (its apksigner signs releases)")
+    return signer
+
+
+def jdk_tool(name: str, pinned: bool) -> Path:
     java_home = os.environ.get("JAVA_HOME")
     path = Path(java_home) / "bin" / name if java_home else None
-    if path is not None and path.is_file():
-        return path
-    found = shutil.which(name)
-    if found is None:
-        raise ValueError(f"Install a JDK providing {name} (javac must support --release 8)")
-    return Path(found)
+    if path is None or not path.is_file():
+        found = shutil.which(name)
+        if found is None:
+            raise ValueError(f"Install a JDK providing {name} (javac must support --release 8)")
+        path = Path(found)
+    if pinned:
+        # `javac -version` prints e.g. "javac 25.0.2" (stdout on modern JDKs).
+        result = subprocess.run([str(path), "-version"], capture_output=True, text=True)
+        major = re.search(r"\b(\d+)[.\s]", result.stdout + result.stderr + " ")
+        if major is None or major.group(1) != REPRODUCIBLE_JDK:
+            raise ValueError(f"Release and unsigned builds require JDK {REPRODUCIBLE_JDK} (set JAVA_HOME)")
+    return path
 
 
 def signing(debug: bool, debug_keystore: Path) -> tuple[Path, str, dict[str, str]]:
@@ -115,7 +146,7 @@ def signing(debug: bool, debug_keystore: Path) -> tuple[Path, str, dict[str, str
         old_umask = os.umask(0o077)
         try:
             # keytool's :env form keeps passwords out of process arguments and logs.
-            run([jdk_tool("keytool"), "-genkeypair", "-noprompt", "-keystore", keystore,
+            run([jdk_tool("keytool", False), "-genkeypair", "-noprompt", "-keystore", keystore,
                  "-storetype", "PKCS12", "-alias", "androiddebugkey", "-keyalg", "RSA",
                  "-keysize", "2048", "-validity", "10000", "-dname", "CN=Android Debug",
                  "-storepass:env", "ANDROID_KEYSTORE_PASSWORD",
@@ -171,14 +202,19 @@ def unsigned_apk(resources: Path, dex: Path, output: Path) -> None:
 
 def build(args: argparse.Namespace) -> Path:
     version, code = module_version()
-    # Signing is mandatory and validated before doing any release compilation.
-    keystore, alias, environment = signing(args.debug, args.debug_keystore)
-    tools, android_jar = sdk_tools(args.sdk.expanduser().resolve())
-    javac = jdk_tool("javac")
+    # Signing is mandatory unless explicitly unsigned, and is validated before compiling.
+    if not args.unsigned:
+        keystore, alias, environment = signing(args.debug, args.debug_keystore)
+    pinned = not args.debug
+    tools, android_jar = sdk_tools(args.sdk.expanduser().resolve(), pinned)
+    javac = jdk_tool("javac", pinned)
+    signer = (None if args.unsigned else
+              signing_tools(args.sdk.expanduser().resolve()) if pinned else tools / "apksigner")
     build_dir = ROOT / "android/build"
     build_dir.mkdir(parents=True, exist_ok=True)
     args.output.mkdir(parents=True, exist_ok=True)
-    output = args.output.resolve() / f"KernelSU-Tailscaled-companion-v{version}.apk"
+    suffix = "-unsigned" if args.unsigned else ""
+    output = args.output.resolve() / f"TailMate-companion-v{version}{suffix}.apk"
     with tempfile.TemporaryDirectory(prefix="apk-", dir=build_dir) as directory:
         work = Path(directory)
         compiled, generated, classes, dex = [work / name for name in ("res", "java", "classes", "dex")]
@@ -208,14 +244,20 @@ def build(args: argparse.Namespace) -> Path:
         aligned = work / "aligned.apk"
         # Alignment must precede signing: https://developer.android.com/tools/apksigner
         run([tools / "zipalign", "-f", "4", unsigned, aligned])
+        if args.unsigned:
+            run([tools / "zipalign", "-c", "4", aligned])
+            shutil.copyfile(aligned, build_dir / "companion-unsigned.apk")
+            os.replace(aligned, output)
+            return output
         signed = work / "signed.apk"
-        run([tools / "apksigner", "sign", "--ks", keystore, "--ks-key-alias", alias,
+        assert signer is not None
+        run([signer, "sign", "--ks", keystore, "--ks-key-alias", alias,
              "--ks-pass", "env:ANDROID_KEYSTORE_PASSWORD", "--key-pass", "env:ANDROID_KEY_PASSWORD",
              "--min-sdk-version", str(MIN_API), "--v1-signing-enabled", "false",
              "--v2-signing-enabled", "true", "--v3-signing-enabled", "true",
              "--v4-signing-enabled", "false", "--out", signed, aligned],
             env=environment, private=True)
-        run([tools / "apksigner", "verify", "--min-sdk-version", str(MIN_API), signed])
+        run([signer, "verify", "--min-sdk-version", str(MIN_API), signed])
         run([tools / "zipalign", "-c", "4", signed])
         shutil.copyfile(aligned, build_dir / "companion-unsigned.apk")
         os.replace(signed, output)
@@ -226,10 +268,14 @@ def main() -> int:
     sdk_default = os.environ.get("ANDROID_SDK_ROOT") or os.environ.get("ANDROID_HOME")
     if not sdk_default:
         sdk_default = str(Path.home() / ("Library/Android/sdk" if sys.platform == "darwin" else "Android/Sdk"))
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--sdk", type=Path, default=Path(sdk_default), help="Android SDK directory")
     parser.add_argument("--output", type=Path, default=ROOT / "dist", help="APK output directory")
-    parser.add_argument("--debug", action="store_true", help="Explicitly use a private developer signing key")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--debug", action="store_true", help="Explicitly use a private developer signing key")
+    mode.add_argument("--unsigned", action="store_true",
+                      help="Emit the zipaligned unsigned release APK; needs no keystore")
     parser.add_argument("--debug-keystore", type=Path, default=DEBUG_KEYSTORE,
                         help="Developer keystore outside the repository (used only with --debug)")
     args = parser.parse_args()
@@ -238,7 +284,8 @@ def main() -> int:
     except (ValueError, OSError, ET.ParseError, zipfile.BadZipFile) as error:
         print(f"APK build failed: {error}", file=sys.stderr)
         return 1
-    print(f"Built {'debug' if args.debug else 'release'} APK: {output}")
+    kind = "unsigned" if args.unsigned else "debug" if args.debug else "release"
+    print(f"Built {kind} APK: {output}")
     return 0
 
 

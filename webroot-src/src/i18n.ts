@@ -2,7 +2,7 @@ export type Language = "en" | "zh-CN";
 
 let language: Language = "en";
 try {
-  if (localStorage.getItem("kst-language") === "zh-CN") language = "zh-CN";
+  if (localStorage.getItem("tm-language") === "zh-CN") language = "zh-CN";
 } catch {
   // Some manager WebViews disable storage; the session still supports switching.
 }
@@ -13,7 +13,7 @@ export function getLanguage(): Language { return language; }
 export function setLanguage(value: Language): void {
   language = value;
   document.documentElement.lang = value;
-  try { localStorage.setItem("kst-language", value); } catch { /* Session-only preference. */ }
+  try { localStorage.setItem("tm-language", value); } catch { /* Session-only preference. */ }
 }
 
 export function t(english: string, chinese: string): string {

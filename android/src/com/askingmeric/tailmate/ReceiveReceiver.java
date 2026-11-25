@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -11,7 +11,7 @@ import android.content.Intent;
 public final class ReceiveReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context base, Intent intent) {
         // Manifest DUMP permission restricts this entry to privileged senders.
-        if (!"io.github.bioluks.tailscaled.RECEIVED".equals(intent.getAction())) return;
+        if (!"com.askingmeric.tailmate.RECEIVED".equals(intent.getAction())) return;
         String name = intent.getStringExtra("filename");
         if (name == null || name.isEmpty() || name.length() > 255 || name.contains("/")
                 || name.contains("\\") || name.matches("(?s).*[\\p{Cntrl}].*")) return;

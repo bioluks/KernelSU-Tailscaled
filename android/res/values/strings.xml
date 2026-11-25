@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Tailscaled Companion</string>
+    <string name="app_name">TailMate</string>
     <string name="main_service">Service</string>
     <string name="main_tools">Tools</string>
     <string name="main_panel_summary">Official Tailscale web interface</string>
@@ -18,7 +18,7 @@
     <string name="send">Send</string>
     <string name="cancel">Cancel</string>
     <string name="working">Working…</string>
-    <string name="idle_note">Uses the installed KernelSU module. Root access is required. No VPN or second Tailscale connection. Nothing runs in this app while idle.</string>
+    <string name="idle_note">Uses the installed TailMate module. Root access is required. No VPN or second Tailscale connection. Nothing runs in this app while idle.</string>
     <string name="notifications">Allow receive notifications</string>
     <string name="notification_off">Notifications are disabled. Files still arrive in the module’s selected folder.</string>
     <string name="no_targets">No Taildrop-capable devices. Connect the module and enable file sharing on your control server.</string>

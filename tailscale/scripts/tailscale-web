@@ -16,7 +16,7 @@ web_start() {
   socket_ready || return 1
   ensure_dirs || return 1
   launch_logged web "$WEB_PID" "$TAILSCALE_BIN" "--socket=$SOCKET_FILE" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" web --listen="$WEB_LISTEN" || return 1
-  local deadline=$(($(date +%s) + KST_START_TIMEOUT))
+  local deadline=$(($(date +%s) + TM_START_TIMEOUT))
   while [ "$(date +%s)" -lt "$deadline" ]; do
     web_health && return 0
     web_running || break

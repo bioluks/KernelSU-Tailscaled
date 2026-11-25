@@ -1,5 +1,10 @@
 # Publication acceptance
 
+> The project was renamed to TailMate in 4.0.0. Entries for earlier versions
+> refer to the old name KernelSU-Tailscaled, its module id
+> `kernelsu-tailscaled`, state directory `/data/adb/kernelsu-tailscaled`, and
+> `KernelSU-Tailscaled-*` artifact names; they are kept unchanged as evidence.
+
 Both prereleases and stable releases require the maintainer's explicit acceptance
 of the exact tested version before publication. Automated tests, a successful
 installation, and an immediate ping do not replace that acceptance.
@@ -241,3 +246,45 @@ Device evidence (Poco F1 `60b09a5f`, KernelSU-Next Manager 1.1.1, Android 15):
 Limits: the OnePlus 9 Pro (primary device) was not re-flashed or rebooted for
 this release; its acceptance is inferred from the Poco and the shared engine.
 The ARMv7 ZIP was verified offline only.
+
+## v4.0.0_tailscale1.104.7 — rename to TailMate, predecessor handover (candidate)
+
+Version code `40000000`. Module id `TailMate`, state `/data/adb/TailMate`,
+companion package `com.askingmeric.tailmate`. The engine (Tailscale 1.104.7,
+same patches) was rebuilt from source twice in `golang:1.27.4-trixie` with
+identical bytes; only the long-version stamp changed (`tm-android-compat-1`).
+Engine binaries are no longer committed; `engine/engine-build.json` pins them.
+Not yet tagged or published: awaiting the maintainer's acceptance.
+
+| Candidate | SHA-256 |
+| --- | --- |
+| `TailMate-v4.0.0_tailscale1.104.7.zip` | `e36590ee04c8da170842c09e1fa6b6c57f4b4a9dc7f37396184419990a03cfec` |
+| `TailMate-arm-v4.0.0_tailscale1.104.7.zip` | `bcfccaa72d2abc28e9a142aef73be6f16e4c6f68a63ccd85a22aab0779293d26` |
+| `TailMate-arm64-v4.0.0_tailscale1.104.7.zip` | `19ba2826327240d20f60b6b8def1ba79bea18a86a0548a1ecdf0ed4219e9e021` |
+
+All three pass `verify-package.py` and rebuild byte-identically. The companion
+tested on devices was a debug-signed build; the release APK is signed in CI.
+
+Device evidence, both phones on KernelSU-Tailscaled 3.6.0 before the flash,
+universal ZIP installed with `ksud module install`:
+
+- Poco F1 `60b09a5f` (KernelSU-Next 1.1.1, Android 15, kernel 4.9): installer
+  printed the handover line; `tailscaled.state` hash identical to the
+  predecessor's (`322121959c…`), node `poco` / `100.64.0.8` without re-login;
+  pending Taildrop dirs and system-DNS setting copied; the 8 `KST_SYSDNS`
+  rules replaced by 8 `TM_SYSDNS` rules; old module flagged `remove`. After an
+  authorized reboot the old module was gone, TailMate started on its own, and
+  `phone.lan` resolved through MagicDNS.
+- OnePlus 9 Pro `7a3c3b6d` (KernelSU-Next 3.4.2, Android 16): same result
+  (`273e8187b6…`, `phone` / `100.64.0.2`, `module.conf` copied); the dormant
+  foreign `TS_DNS_ENFORCE`/`TS_HOTSPOT_DNS` chains were left untouched. After an
+  authorized reboot: old module removed, TailMate running, `poco.lan` resolved.
+- Companion: the old app was uninstalled and the new package installed on both;
+  root granted in Manager. Status card showed Connected, IPs, Taildrop, system
+  DNS and module 4.0.0. Taildrop OnePlus → Poco delivered to Download with the
+  "Taildrop file received" notification; Poco → OnePlus via the share sheet
+  delivered with the "Files sent" notification.
+
+Limits: Magisk and APatch not tested on a device. ARMv7 ZIP verified offline
+only. The bridge (`update-kernelsu.json` via the renamed repo) is checked only
+after the GitHub rename.

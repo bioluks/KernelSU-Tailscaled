@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** Native equivalents of every module setting in the KernelSU WebUI. */
+/** Native equivalents of every module setting in the module WebUI. */
 public final class ModuleSettingsActivity extends Activity {
     private interface Work { String run() throws Exception; }
     private interface Done { void accept(String output) throws Exception; }

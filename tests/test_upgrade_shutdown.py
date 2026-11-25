@@ -87,7 +87,7 @@ os.execv(os.environ['REAL_SLEEP'], [os.environ['REAL_SLEEP'], *sys.argv[1:]])
                      'Requires Linux, mksh and flock')
 class UpgradeShutdownTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix='kst-upgrade-')
+        temporary = tempfile.TemporaryDirectory(prefix='tm-upgrade-')
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         self.state = self.root / 'state'
@@ -119,10 +119,10 @@ class UpgradeShutdownTests(unittest.TestCase):
             f'MODE=native\nWEB_LISTEN=127.0.0.1:{port}\nTAILDROP_DIR=/dev/null\n')
         self.env = dict(PATH=f'{self.commands}:{os.defpath}', LC_ALL='C',
                         BUNDLE_DIR=str(self.old), MODDIR=str(self.mod), TS_DIR=str(self.state),
-                        KST_SHELL=MKSH, KST_BUSYBOX=str(self.root / 'no-busybox'),
-                        KST_STAGED_DIR=str(self.staged), KST_LEGACY_DIR=str(self.root / 'legacy'),
-                        KST_LEGACY_MODULE=str(self.root / 'legacy-module'),
-                        KST_LOCK_TIMEOUT='15', KST_STOP_TIMEOUT='3', KST_START_TIMEOUT='5',
+                        TM_SHELL=MKSH, TM_BUSYBOX=str(self.root / 'no-busybox'),
+                        TM_STAGED_DIR=str(self.staged), TM_LEGACY_DIR=str(self.root / 'legacy'),
+                        TM_LEGACY_MODULE=str(self.root / 'legacy-module'),
+                        TM_LOCK_TIMEOUT='15', TM_STOP_TIMEOUT='3', TM_START_TIMEOUT='5',
                         FIXTURE_ROOT=str(self.root), REAL_FLOCK=FLOCK,
                         REAL_SLEEP=shutil.which('sleep', path=os.defpath))
         self.controller = self.old / 'scripts/runtime-control.sh'
@@ -143,7 +143,7 @@ class UpgradeShutdownTests(unittest.TestCase):
         for name in ('tailscale', 'tailscaled'):
             self.write_python(name, self.fake_runtime, bundle / 'bin')
         (bundle / 'module.prop').write_text(
-            f'id=kernelsu-tailscaled\nversion=3.3.{code}\nversionCode={code}\n')
+            f'id=TailMate\nversion=3.3.{code}\nversionCode={code}\n')
         (bundle / 'engine-version').write_text('1.102.3\n')
         (bundle / 'bundle.sha256').write_text(''.join(
             f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(bundle)}\n'

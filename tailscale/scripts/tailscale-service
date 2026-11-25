@@ -9,10 +9,10 @@ runtime_stop() {
   printf '0\n' > "$RUN_DIR/wanted"
   # The supervisor's TERM trap exits without acquiring this controller lock.
   stop_owned "$SUPERVISOR_PID" "$SUPERVISOR_SCRIPT" || failed=1
-  "$KST_SHELL" "$TAILDROP_SCRIPT" stop 9>&9 || failed=1
-  "$KST_SHELL" "$WEB_SCRIPT" stop 9>&9 || failed=1
-  "$KST_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || failed=1
-  "$KST_SHELL" "$DAEMON_SCRIPT" stop 9>&9 || failed=1
+  "$TM_SHELL" "$TAILDROP_SCRIPT" stop 9>&9 || failed=1
+  "$TM_SHELL" "$WEB_SCRIPT" stop 9>&9 || failed=1
+  "$TM_SHELL" "$TUNNEL_SCRIPT" stop 9>&9 || failed=1
+  "$TM_SHELL" "$DAEMON_SCRIPT" stop 9>&9 || failed=1
   if [ "$failed" = 1 ]; then
     set_lifecycle failed
     echo 'Tailscale runtime stop failed; retained owned process records' >&2
@@ -25,7 +25,7 @@ runtime_stop() {
 migration_required() {
   [ -f "$TS_DIR/migration-required" ] || [ -e "$TS_DIR/migration.pending" ] || {
     [ ! -e "$STATE_FILE" ] && {
-      [ -e "${KST_LEGACY_DIR:-/data/adb/tailscale}/tailscaled.state" ] || [ -e "${KST_LEGACY_DIR:-/data/adb/tailscale}/tmp/tailscaled.state" ]
+      [ -e "${TM_LEGACY_DIR:-/data/adb/tailscale}/tailscaled.state" ] || [ -e "${TM_LEGACY_DIR:-/data/adb/tailscale}/tmp/tailscaled.state" ]
     }
   }
 }
@@ -41,17 +41,17 @@ runtime_start() {
     return 1
   fi
   set_lifecycle starting
-  if ! "$KST_SHELL" "$DAEMON_SCRIPT" start 9>&9; then
+  if ! "$TM_SHELL" "$DAEMON_SCRIPT" start 9>&9; then
     set_lifecycle failed
     log ERROR 'Daemon startup failed'
     echo 'Tailscale daemon startup failed' >&2
     return 1
   fi
-  "$KST_SHELL" "$TUNNEL_SCRIPT" start 9>&9 || log WARN 'Data-plane helper startup failed'
-  "$KST_SHELL" "$WEB_SCRIPT" start 9>&9 || log WARN 'Official web panel startup failed'
-  "$KST_SHELL" "$TAILDROP_SCRIPT" start 9>&9 || log WARN 'Taildrop receiver startup unavailable; inspect logs and unlock shared storage or save another folder'
+  "$TM_SHELL" "$TUNNEL_SCRIPT" start 9>&9 || log WARN 'Data-plane helper startup failed'
+  "$TM_SHELL" "$WEB_SCRIPT" start 9>&9 || log WARN 'Official web panel startup failed'
+  "$TM_SHELL" "$TAILDROP_SCRIPT" start 9>&9 || log WARN 'Taildrop receiver startup unavailable; inspect logs and unlock shared storage or save another folder'
   if ! supervisor_health; then
-    (exec 9>&- 8>&-; unset KST_LOCK_HELD; trap '' HUP; exec "$KST_SHELL" "$SUPERVISOR_SCRIPT") </dev/null >/dev/null 2>&1 &
+    (exec 9>&- 8>&-; unset TM_LOCK_HELD; trap '' HUP; exec "$TM_SHELL" "$SUPERVISOR_SCRIPT") </dev/null >/dev/null 2>&1 &
     local pid=$!
     if ! write_pid "$SUPERVISOR_PID" "$pid" "$SUPERVISOR_SCRIPT"; then
       set_lifecycle failed
@@ -67,7 +67,7 @@ runtime_enable() { rm -f "$MODDIR/disable"; runtime_start; }
 runtime_disable() { : > "$MODDIR/disable"; runtime_stop; }
 runtime_toggle() { if module_disabled; then runtime_enable; else runtime_disable; fi; }
 runtime_restart() { runtime_stop >/dev/null && runtime_start; }
-web_restart() { "$KST_SHELL" "$WEB_SCRIPT" stop 9>&9 && "$KST_SHELL" "$WEB_SCRIPT" start 9>&9; }
+web_restart() { "$TM_SHELL" "$WEB_SCRIPT" stop 9>&9 && "$TM_SHELL" "$WEB_SCRIPT" start 9>&9; }
 
 taildrop_save_directory() (
   local directory error source temporary line written=0 wanted
@@ -98,14 +98,14 @@ taildrop_save_directory() (
   chmod 0600 "$temporary" && mv -f "$temporary" "$CONFIG_DIR/module.conf" || exit 1
   trap - EXIT HUP INT TERM
   # Saving a folder never touches the daemon, identity or network preferences.
-  if ! "$KST_SHELL" "$TAILDROP_SCRIPT" stop 9>&9; then
+  if ! "$TM_SHELL" "$TAILDROP_SCRIPT" stop 9>&9; then
     log WARN 'Taildrop folder saved, but owned receiver stop failed; inspect logs before recovery'
     echo 'Folder saved; receiver could not stop safely. Inspect Logs.'
     exit 0
   fi
   IFS= read -r wanted < "$RUN_DIR/wanted" 2>/dev/null || wanted=
   if [ "$wanted" = 1 ] && ! module_disabled && daemon_running; then
-    if ! "$KST_SHELL" "$TAILDROP_SCRIPT" start 9>&9; then
+    if ! "$TM_SHELL" "$TAILDROP_SCRIPT" start 9>&9; then
       log WARN 'Taildrop folder saved, but receiver startup is unavailable; recovery will retry'
       echo 'Folder saved; receiver is unavailable. Inspect Logs and shared-storage access.'
       exit 0
@@ -218,14 +218,14 @@ EOF
   if [ -f "$RUN_DIR/recovery-failure" ]; then diagnostic recovery-backoff warning 'Owned process recovery is retrying with bounded backoff'; fi
   [ -x "$TAILSCALED_BIN" ] || diagnostic bundle-missing error 'Runtime daemon executable is missing'
   module_version=$(version_of "$BUNDLE_DIR")
-  engine_version=$(bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" version 2>/dev/null | head -n 1 | redact)
+  engine_version=$(bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" version 2>/dev/null | head -n 1 | redact)
   printf '{"schemaVersion":2,"enabled":%s,"mode":"%s","lifecycle":"%s",' "$enabled" "$MODE" "$lifecycle"
   printf '"webListen":"%s",' "$(json_escape "$WEB_LISTEN")"
   printf '"moduleVersion":"%s","tailscaleVersion":"%s",' "$(json_escape "$module_version")" "$(json_escape "$engine_version")"
   printf '"components":{"supervisor":"%s","daemon":"%s","dataPlane":"%s","web":"%s"},' "$supervisor" "$daemon" "$DATA_PLANE" "$web"
   printf '"taildrop":{"directory":"%s","receiver":"%s"},' "$(json_escape "$TAILDROP_DIR")" "$receiver"
   printf '"runtime":{"activeVersion":'; version_json "$BUNDLE_DIR"
-  printf ',"stagedVersion":'; version_json "$KST_STAGED_DIR"
+  printf ',"stagedVersion":'; version_json "$TM_STAGED_DIR"
   printf ',"previousVersion":'; version_json "$TS_DIR/previous"
   if system_dns_enabled; then sd_enabled=true; else sd_enabled=false; fi
   if system_dns_applied; then sd_applied=true; else sd_applied=false; fi
@@ -256,10 +256,10 @@ login_server() {
   previous=$(cli_json auth-url status --json) || return 1
   # Masked preference edits retain DNS, routes, hostname and other user choices.
   # Restart the control client, not the daemon or Android device.
-  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" debug localapi PATCH /localapi/v0/prefs \
+  bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" debug localapi PATCH /localapi/v0/prefs \
     "{\"ControlURL\":\"$server\",\"ControlURLSet\":true,\"WantRunning\":true,\"WantRunningSet\":true}" >/dev/null 2>&1 || { echo 'Could not save control server preference' >&2; return 1; }
-  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" debug localapi POST /localapi/v0/start '{}' >/dev/null 2>&1 || { echo 'Server saved, but control client startup failed' >&2; return 1; }
-  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" debug localapi POST /localapi/v0/login-interactive >/dev/null 2>&1 || { echo 'Server saved, but interactive sign-in failed' >&2; return 1; }
+  bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" debug localapi POST /localapi/v0/start '{}' >/dev/null 2>&1 || { echo 'Server saved, but control client startup failed' >&2; return 1; }
+  bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" debug localapi POST /localapi/v0/login-interactive >/dev/null 2>&1 || { echo 'Server saved, but interactive sign-in failed' >&2; return 1; }
   while [ "$attempt" -lt 5 ]; do
     auth=$(cli_json auth-url status --json) || return 1
     [ "$auth" = '""' ] || [ "$auth" = "$previous" ] || break
@@ -275,7 +275,7 @@ dns_set() {
     echo 'Enable the module and complete any migration before changing DNS settings' >&2; return 1
   fi
   daemon_running || { echo 'The owned Tailscale daemon must be running' >&2; return 1; }
-  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" set "--accept-dns=$target" >/dev/null 2>&1 || {
+  bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" set "--accept-dns=$target" >/dev/null 2>&1 || {
     echo 'Could not update Tailscale DNS setting' >&2; return 1
   }
 }
@@ -325,7 +325,7 @@ case "$1" in
   disable-dns) with_control_lock dns_set false ;;
   toggle-dns) with_control_lock dns_toggle ;;
   taildrop-save-dir) with_control_lock taildrop_save_directory ;;
-  taildrop-targets) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_targets ;;
-  taildrop-send) exec 9>&- 8>&-; unset KST_LOCK_HELD; taildrop_send ;;
+  taildrop-targets) exec 9>&- 8>&-; unset TM_LOCK_HELD; taildrop_targets ;;
+  taildrop-send) exec 9>&- 8>&-; unset TM_LOCK_HELD; taildrop_send ;;
   *) echo 'usage: tailscale-service {enable|disable|toggle|start|stop|restart|status|status-json|logs|web-restart|diagnostics|login-server|enable-dns|disable-dns|toggle-dns|enable-system-dns|disable-system-dns|private-dns-off|taildrop-save-dir|taildrop-targets|taildrop-send}' >&2; exit 2 ;;
 esac

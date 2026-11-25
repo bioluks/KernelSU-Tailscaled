@@ -9,12 +9,12 @@ interface Fixture {
   failures: Record<string, string>;
   hanging: string[];
 }
-declare global { interface Window { __kst: Fixture } }
+declare global { interface Window { __tm: Fixture } }
 
 async function mockBridge(page: Page, status: unknown) {
   await page.addInitScript(({ status, running }) => {
     const fixture: Fixture = { status, commands: [], failures: {}, hanging: [] };
-    window.__kst = fixture;
+    window.__tm = fixture;
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => Promise.reject(new Error("clipboard denied")) } });
     Object.defineProperty(window, "ksu", { value: {
       exec(command: string, _options: string, callbackName: string) {
@@ -70,7 +70,7 @@ test('engine update requires explicit apply after download', async ({ page }) =>
   await page.locator('[data-action=engine-prepare]').click();
   await expect(page.locator('[data-action=engine-apply]')).toBeVisible();
   await checkLayout(page);
-  expect(await page.evaluate(() => window.__kst.commands)).not.toContain('engine-apply');
+  expect(await page.evaluate(() => window.__tm.commands)).not.toContain('engine-apply');
   page.once('dialog', dialog => dialog.accept());
   await page.locator('[data-action=engine-apply]').click();
   await expect(page.locator('[data-action=engine-apply]')).toHaveCount(0);
@@ -80,7 +80,7 @@ test("connected status and stable toolbar", async ({ page }, info) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await mockBridge(page, running);
-  await expect(page.getByRole("heading", { name: "KernelSU-Tailscaled" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "TailMate" })).toBeVisible();
   await expect(page.locator(".device-name")).toHaveText("pkx110");
   await checkLayout(page);
   await page.screenshot({ path: info.outputPath("running.png"), fullPage: true });
@@ -97,11 +97,11 @@ test("degraded status and confirmed staged activation", async ({ page }, info) =
   await page.screenshot({ path: info.outputPath("degraded.png"), fullPage: true });
   page.once("dialog", (dialog) => dialog.dismiss());
   await page.locator('[data-action="apply-staged"]').click();
-  expect(await page.evaluate(() => window.__kst.commands)).not.toContain("apply-staged");
+  expect(await page.evaluate(() => window.__tm.commands)).not.toContain("apply-staged");
   page.once("dialog", (dialog) => dialog.accept());
   await page.locator('[data-action="apply-staged"]').click();
   await expect(page.locator('[data-lifecycle="running"]')).toBeVisible();
-  expect(await page.evaluate(() => window.__kst.commands)).toContain("apply-staged");
+  expect(await page.evaluate(() => window.__tm.commands)).toContain("apply-staged");
 });
 
 test("explicit migration waits for a separate enable", async ({ page }, info) => {
@@ -110,11 +110,11 @@ test("explicit migration waits for a separate enable", async ({ page }, info) =>
   await page.screenshot({ path: info.outputPath("migration.png"), fullPage: true });
   page.once("dialog", (dialog) => dialog.dismiss());
   await page.locator('[data-action="migrate-legacy"]').click();
-  expect(await page.evaluate(() => window.__kst.commands)).not.toContain("migrate-legacy");
+  expect(await page.evaluate(() => window.__tm.commands)).not.toContain("migrate-legacy");
   page.once("dialog", (dialog) => dialog.accept());
   await page.locator('[data-action="migrate-legacy"]').click();
   await expect(page.locator('[data-action="enable"]')).toBeEnabled();
-  expect(await page.evaluate(() => window.__kst.commands)).not.toContain("enable");
+  expect(await page.evaluate(() => window.__tm.commands)).not.toContain("enable");
   await expect(page.locator('[data-action="open-panel"]')).toBeDisabled();
   await page.locator('[data-action="enable"]').click();
   await expect(page.locator('[data-lifecycle="running"]')).toBeVisible();
@@ -122,14 +122,14 @@ test("explicit migration waits for a separate enable", async ({ page }, info) =>
 
 test("command and log failures preserve the current view and recover buttons", async ({ page }, info) => {
   await mockBridge(page, running);
-  await page.evaluate(() => { window.__kst.failures.restart = '<img src=x onerror="bad()"> restart failed'; });
+  await page.evaluate(() => { window.__tm.failures.restart = '<img src=x onerror="bad()"> restart failed'; });
   await page.locator('[data-action="restart"]').click();
   await expect(page.getByRole("alert")).toContainText("restart failed");
   await expect(page.locator("img")).toHaveCount(0);
   await expect(page.locator('[data-action="restart"]')).toBeEnabled();
   await page.locator('[data-action="logs"]').click();
   await expect(page.locator("pre")).toContainText("<script>bad()</script>");
-  await page.evaluate(() => { window.__kst.failures.logs = "logs failed"; });
+  await page.evaluate(() => { window.__tm.failures.logs = "logs failed"; });
   await page.locator('[data-action="refresh-logs"]').click();
   await expect(page.getByRole("alert")).toContainText("logs failed");
   await expect(page.locator("pre")).toContainText("fixture log line");

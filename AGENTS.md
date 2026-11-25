@@ -1,4 +1,4 @@
-# AGENTS.md — KernelSU-Tailscaled
+# AGENTS.md — TailMate
 
 Always-load context for agents working in this repo. Deep docs exist; read them
 before touching their area. This file is the index + the invariants that cost
@@ -6,19 +6,21 @@ hours when violated.
 
 ## What this repo is
 
-A KernelSU/KernelSU-Next Magisk-style module running a patched Tailscale
-daemon natively on Android **without occupying the VPN slot**. State lives in
-`/data/adb/kernelsu-tailscaled` (TS_DIR), isolated from other modules; explicit
-migration for legacy installs. Fork of WayneShao/ryukora work; default branch
-is `master`.
+TailMate (formerly KernelSU-Tailscaled, renamed in 4.0.0): a root module for
+KernelSU/KernelSU-Next/Magisk/APatch (module id `TailMate`) running a patched
+Tailscale daemon natively on Android **without occupying the VPN slot**. State
+lives in `/data/adb/TailMate` (TS_DIR), isolated from other modules; explicit
+migration for legacy installs. Companion package `com.askingmeric.tailmate`.
+Fork of WayneShao/ryukora work; repo `bioluks/TailMate`; default branch is
+`master`.
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
-| `module.prop`, `update-kernelsu.json`, `CHANGELOG.txt` | Version + public update feed |
-| `files/` | Bundled engines (`tailscale*{,-arm64,-arm}`), hev tunnel binaries, `VERSION.txt`, `engine-build.json`, `manifest.sha256` |
-| `engine/patches/` | Two patches over pristine upstream: `0001-old-kernel-netlink`, `0002-android-dns` |
+| `module.prop`, `update.json`, `update-kernelsu.json` (bridge), `CHANGELOG.txt` | Version + public update feed |
+| `files/` | Build outputs (ignored): engines `tailscale*-{arm,arm64}`, `VERSION.txt`, `engine-build.json`, `manifest.sha256`. Committed: hev tunnel binaries (pinned upstream assets) |
+| `engine/` | `patches/` (two patches over pristine upstream: `0001-old-kernel-netlink`, `0002-android-dns`), `engine-build.json` (lock), `hev-socks5-tunnel.sha256` |
 | `scripts/` | Installer/runtime control: `build_engine.py`, `build_release.py`, `runtime-control.sh`, `verify-package.py` |
 | `tailscale/scripts/` | Runtime: `tailscale-service` (commands/status), `tailscale-daemon`, `tailscale-supervisor`, `system-dns.sh` (opt-in DNS takeover), `common.sh`, `json.awk` |
 | `webroot-src/` + `webroot/` | Module WebUI (TypeScript/vitest/Playwright); `webroot/assets/app.js` is **committed build output** |
@@ -29,28 +31,42 @@ is `master`.
 ## Hard invariants
 
 ### Versioning
-- `versionCode` is a **single monotonic integer** (current `30050005`). KernelSU
-  orders updates by it; `kst_activate` rejects an equal-or-lower code with
+- `versionCode` is a **single monotonic integer** (current `40000000`). Managers
+  order updates by it; `tm_activate` rejects an equal-or-lower code with
   different bundle bytes. Every build iteration on a device consumes a code.
 - `version=` embeds the engine: `X.Y.Z_tailscaleA.B.C`. `+` is rejected by
   `android/build.py`'s filename-safe regex; `-` makes the publish workflow treat
-  the tag as a prerelease. The suffix must match `files/VERSION.txt`
-  (`tests/test_metadata.py` enforces it).
+  the tag as a prerelease. The suffix must match `VERSION` in
+  `scripts/build_engine.py` (`tests/test_metadata.py` enforces it).
 - The public feed on `master` must never point at a ZIP URL that does not exist
   yet. Advance it only after the release is published (see Release flow).
+
+### Predecessor handover (KernelSU-Tailscaled → TailMate)
+- The predecessor is module id `kernelsu-tailscaled`, module dir
+  `/data/adb/modules/kernelsu-tailscaled`, state `/data/adb/kernelsu-tailscaled`
+  (overrides `TM_PREDECESSOR_MODULE`, `TM_PREDECESSOR_DIR`). Installing TailMate
+  stops it, **copies** (never moves) identity/settings/pending Taildrop files into
+  `/data/adb/TailMate`, and marks the old module `remove` for the next reboot.
+- The predecessor's netfilter chains keep their old names `KST_SYSDNS`/
+  `KST_SYSDNS6`; only the handover cleanup may reference them. TailMate owns
+  `TM_SYSDNS`/`TM_SYSDNS6`.
+- The older Magisk-Tailscaled migration (`/data/adb/tailscale`,
+  `magisk-tailscaled`) is separate and stays explicit.
 
 ### Engine (Tailscale)
 - `scripts/build_engine.py` constants `VERSION`, `REVISION`,
   `SOURCE_SHA256`, `TOOLCHAIN` are the single source of the engine version.
-  `files/VERSION.txt`, `files/engine-build.json`, `files/manifest.sha256` are
-  **generated**; never hand-edit. Upstream bumps may raise the `go.mod` Go
-  requirement (1.104.7 needed go1.27.4) — bump TOOLCHAIN and the CI
-  `go-version` in lockstep.
+  Engine binaries are **never committed**; `files/` outputs are generated.
+  `engine/engine-build.json` is the committed lock: a normal build fails unless
+  it reproduces it byte for byte; `--update-lock` only for an intended engine
+  change. Upstream bumps may raise the `go.mod` Go requirement (1.104.7 needed
+  go1.27.4) — bump TOOLCHAIN and the CI `go-version` in lockstep.
 - Patches must apply cleanly with `git apply --check` to the pristine tarball
-  (`.local/engine-build/` caches it; ignored). Rebuild is expected to be
-  **byte-identical across two runs** in the pinned container.
-- When regenerating the manifest, put `files/hev-socks5-tunnel-linux-*` into
-  the output dir first or the manifest will miss them.
+  (`.local/engine-build/` caches it; ignored). Build on Linux in the pinned
+  container (`golang:1.27.4-trixie`).
+- hev-socks5-tunnel binaries are upstream 2.6.8 release assets pinned by
+  `engine/hev-socks5-tunnel.sha256`; keep them in `files/` before building the
+  engine or the generated manifest misses them.
 
 ### Runtime & state
 - Generations live at `$TS_DIR/releases/<versionCode>-<digest>`; `$TS_DIR/current`
@@ -109,10 +125,14 @@ npm --prefix webroot-src run build        # commits webroot/assets/app.js
 npm --prefix webroot-src run test:browser # Playwright
 
 # Companion (needs Android SDK, ANDROID_HOME):
-python3 android/build.py --debug
+python3 android/build.py --debug      # private debug key
+python3 android/build.py --unsigned   # F-Droid input, no key
 
-# Packages:
-sh scripts/build-release.sh --use-existing-binaries --output <dir>
+# Engine (Linux, pinned container), then packages:
+docker run --rm -v "$(pwd):/repo" -w /repo golang:1.27.4-trixie sh -ec \
+  'apt-get update -qq && apt-get install -y -qq python3 git >/dev/null; \
+   git config --global --add safe.directory /repo; python3 scripts/build_engine.py'
+sh scripts/build-release.sh --output <dir>
 python3 scripts/verify-package.py --zip <zip> --arch all|arm|arm64
 ```
 
@@ -127,7 +147,11 @@ python3 scripts/verify-package.py --zip <zip> --arch all|arm|arm64
    the tag runs `.github/workflows/release.yml` (signed companion) then
    `publish-source.yml` (immutable release with the three ZIPs + APK).
 4. Only after the release exists: fast-forward `master`, push, verify the raw
-   `update-kernelsu.json` matches. Legacy branch renames keep old raw URLs
+   `update.json` (the public feed, shipped in the ZIP) matches.
+   `update-kernelsu.json` is a bridge polled by pre-4.0.0 KernelSU-Tailscaled
+   installs via the redirected old repo URL; it must mirror `update.json`
+   byte-for-byte until it is removed in a later release
+   (`tests/test_metadata.py` enforces it). Repo renames keep old raw URLs
    redirecting (verified empirically).
 
 ## Test harness facts
@@ -153,7 +177,7 @@ python3 scripts/verify-package.py --zip <zip> --arch all|arm|arm64
 - Taildrop between the two phones is verified both ways through the companion.
 - Always `uiautomator dump` and find the node before tapping; **stale
   "Flash success" dialogs persist** — dismiss them and verify the install via
-  `su -c "readlink -f /data/adb/kernelsu-tailscaled/current"` and
+  `su -c "readlink -f /data/adb/TailMate/current"` and
   `modules_update/module.prop`, never via the dialog alone.
 - Resolution proofs: `tcpdump -ni tailscale0 "udp port 53"` while `ping`-ing a
   fresh random name and `phone.lan`.
@@ -169,9 +193,9 @@ python3 scripts/verify-package.py --zip <zip> --arch all|arm|arm64
 - Commit the generated `webroot/assets/app.js` after every `npm run build`;
   CI diffs it.
 - Android kills an app's whole `uid_N/pid_M` cgroup (v2) when it is removed
-  from recents. Anything started from KernelSU Manager's WebUI or the companion
+  from recents. Anything started from the manager's WebUI or the companion
   inherits that group, so the daemon died with the manager ("PhantomProcess …
-  died"). `kst_leave_app_cgroup` in `bundle-lib.sh` moves the controller out
+  died"). `tm_leave_app_cgroup` in `bundle-lib.sh` moves the controller out
   first; verify with `/sys/fs/cgroup/uid_*/pid_*/cgroup.procs`.
 - Ad-hoc `adb shell su -c '…$(pidof x)…'` expands on the Mac side; push a
   script to `/data/local/tmp` and run that instead.

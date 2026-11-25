@@ -36,7 +36,7 @@ describe("schema 2 dashboard", () => {
   it("shows module identity, real health and runtime generations", () => {
     const root = document.createElement("div");
     renderDashboard(root, parseRuntimeStatus(JSON.stringify(degraded)));
-    expect(root.querySelector("h1")?.textContent).toBe("KernelSU-Tailscaled");
+    expect(root.querySelector("h1")?.textContent).toBe("TailMate");
     expect(root.textContent).toContain("DNS server is unreachable");
     expect(root.textContent).toContain("2.0.0-beta.2");
     expect(root.textContent).toContain("2.0.0-alpha.1");

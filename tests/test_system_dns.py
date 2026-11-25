@@ -17,7 +17,7 @@ class SystemDnsTests(RuntimeHarness):
             return {}
         return json.loads(self.netfilter_state.read_text())
 
-    def rules(self, table='nat', chain='KST_SYSDNS'):
+    def rules(self, table='nat', chain='TM_SYSDNS'):
         return self.netfilter().get(table, {}).get(chain, [])
 
     def jumps(self, table='nat'):
@@ -25,9 +25,9 @@ class SystemDnsTests(RuntimeHarness):
 
     def assert_absent(self):
         self.assertEqual([], self.rules())
-        self.assertEqual([], self.rules('filter', 'KST_SYSDNS6'))
-        self.assertFalse(any('KST_SYSDNS' in rule for rule in self.jumps()))
-        self.assertFalse(any('KST_SYSDNS' in rule for rule in self.jumps('filter')))
+        self.assertEqual([], self.rules('filter', 'TM_SYSDNS6'))
+        self.assertFalse(any('TM_SYSDNS' in rule for rule in self.jumps()))
+        self.assertFalse(any('TM_SYSDNS' in rule for rule in self.jumps('filter')))
 
     def preload_netfilter(self, state):
         self.netfilter_state.write_text(json.dumps(state))
@@ -72,8 +72,8 @@ class SystemDnsTests(RuntimeHarness):
                             and '--to-source 100.100.1.1' in rule for rule in self.rules('nat', 'POSTROUTING')))
         self.assertFalse(any('192.168.0.0/16' in rule for rule in chain))
         jumps = self.jumps()
-        self.assertEqual(1, jumps.count('-p udp --dport 53 -j KST_SYSDNS'))
-        self.assertEqual(1, jumps.count('-p tcp --dport 53 -j KST_SYSDNS'))
+        self.assertEqual(1, jumps.count('-p udp --dport 53 -j TM_SYSDNS'))
+        self.assertEqual(1, jumps.count('-p tcp --dport 53 -j TM_SYSDNS'))
         self.assertTrue((self.state / 'system-dns-enabled').exists())
         status = self.status()
         self.assertEqual((True, True), self.dns_state(status))
@@ -95,8 +95,8 @@ class SystemDnsTests(RuntimeHarness):
             self.assertEqual(0, result.returncode, result.stderr)
 
         jumps = self.jumps()
-        self.assertEqual(1, jumps.count('-p udp --dport 53 -j KST_SYSDNS'))
-        self.assertEqual(1, jumps.count('-p tcp --dport 53 -j KST_SYSDNS'))
+        self.assertEqual(1, jumps.count('-p udp --dport 53 -j TM_SYSDNS'))
+        self.assertEqual(1, jumps.count('-p tcp --dport 53 -j TM_SYSDNS'))
         prefs = json.loads((self.root / 'prefs.json').read_text())
         self.assertTrue(prefs['CorpDNS'])
 
@@ -123,13 +123,13 @@ class SystemDnsTests(RuntimeHarness):
         result = self.run_command('enable-system-dns')
 
         self.assertEqual(0, result.returncode, result.stderr)
-        chain6 = self.rules('filter', 'KST_SYSDNS6')
+        chain6 = self.rules('filter', 'TM_SYSDNS6')
         self.assertTrue(any('REJECT' in rule and 'icmp6-port-unreachable' in rule for rule in chain6))
         self.assertTrue(any('REJECT' in rule and 'tcp-reset' in rule for rule in chain6))
         jumps6 = self.jumps('filter')
-        self.assertIn('-p udp --dport 53 -j KST_SYSDNS6', jumps6)
-        self.assertIn('-p tcp --dport 53 -j KST_SYSDNS6', jumps6)
-        self.assertEqual([], self.rules('nat', 'KST_SYSDNS6'))
+        self.assertIn('-p udp --dport 53 -j TM_SYSDNS6', jumps6)
+        self.assertIn('-p tcp --dport 53 -j TM_SYSDNS6', jumps6)
+        self.assertEqual([], self.rules('nat', 'TM_SYSDNS6'))
         self.assertTrue(self.rules())
 
     def test_enable_refuses_active_foreign_dns_redirect(self):
@@ -181,7 +181,7 @@ class SystemDnsTests(RuntimeHarness):
         service_d = self.root / 'adb/service.d'
         service_d.mkdir(parents=True)
         (service_d / 'afwall-chains.sh').write_text('iptables -t nat -N TS_DNS_ENFORCE\n')
-        self.env['KST_ADB_ROOT'] = str(self.root / 'adb')
+        self.env['TM_ADB_ROOT'] = str(self.root / 'adb')
         self.start()
 
         result = self.run_command('enable-system-dns')

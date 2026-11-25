@@ -56,7 +56,7 @@ class VerificationError(ValueError):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Verify a KernelSU-Tailscaled module ZIP")
+    parser = argparse.ArgumentParser(description="Verify a TailMate module ZIP")
     parser.add_argument("--zip", dest="archive", required=True, type=Path)
     parser.add_argument("--arch", required=True, choices=("all", "arm", "arm64"))
     return parser.parse_args()
@@ -119,7 +119,7 @@ def parse_module_prop(content: bytes) -> dict[str, str]:
     for key in ("id", "name", "version", "versionCode", "author", "description"):
         if not properties.get(key):
             fail(f"missing module.prop field: {key}")
-    if properties["id"] != "kernelsu-tailscaled":
+    if properties["id"] != "TailMate":
         fail(f"unexpected module id: {properties['id']}")
     if not properties["versionCode"].isdigit() or not 0 < int(properties["versionCode"]) <= 2147483647:
         fail("module versionCode is not an integer")

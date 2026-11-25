@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 import android.app.Activity;
 import android.app.AlertDialog;

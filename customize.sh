@@ -10,7 +10,7 @@ case "$ARCH" in
   *) abort "Unsupported architecture: $ARCH" ;;
 esac
 
-ui_print "- Installing KernelSU-Tailscaled for $F_ARCH"
+ui_print "- Installing TailMate for $F_ARCH"
 unzip -oq "$ZIPFILE" -x 'META-INF/*' 'files/*' -d "$MODPATH" || abort "Module extraction failed"
 mkdir -p "$MODPATH/bin" || abort "Candidate directory creation failed"
 unzip -p "$ZIPFILE" "files/tailscale-$F_ARCH" > "$MODPATH/bin/tailscale" || abort "Missing tailscale binary"
@@ -23,7 +23,7 @@ if unzip -l "$ZIPFILE" "files/hev-socks5-tunnel-linux-$F_ARCH" 2>/dev/null | gre
 fi
 
 . "$MODPATH/scripts/bundle-lib.sh"
-kst_verify_bundle "$MODPATH" || abort "Candidate integrity verification failed"
+tm_verify_bundle "$MODPATH" || abort "Candidate integrity verification failed"
 set_perm_recursive "$MODPATH/bin" 0 0 0755 0755
 set_perm_recursive "$MODPATH/scripts" 0 0 0755 0755
 set_perm_recursive "$MODPATH/tailscale/scripts" 0 0 0755 0755

@@ -78,7 +78,7 @@ engine_prepare() (
   target="$TS_DIR/engines/$version-$arch-$expected"
   if [ -e "$target" ]; then engine_verify "$target" || exit 1
   else mv "$work" "$target" || exit 1; fi
-  kst_pointer engine-ready "$target" || exit 1
+  tm_pointer engine-ready "$target" || exit 1
   engine_status
 )
 
@@ -101,16 +101,16 @@ engine_recover() {
     [ -f "$journal/tailscaled.state" ] || return 1
   fi
   # Retain the journal if an owned process cannot be stopped safely.
-  kst_runtime "$BUNDLE_DIR" stop >/dev/null || return 1
+  tm_runtime "$BUNDLE_DIR" stop >/dev/null || return 1
   if [ "$old" = bundled ]; then rm -f "$TS_DIR/engine-current"
-  else kst_pointer engine-current "$old" || return 1; fi
+  else tm_pointer engine-current "$old" || return 1; fi
   if [ -f "$journal/snapshot-ready" ]; then
     if [ -f "$journal/state-existed" ]; then
       cp -p "$journal/tailscaled.state" "$STATE_FILE.restore" && mv -f "$STATE_FILE.restore" "$STATE_FILE" || return 1
     else rm -f "$STATE_FILE"; fi
   fi
   if [ "$wanted" = 1 ] && [ ! -f "$journal/no-restart" ] && ! module_disabled; then
-    kst_runtime "$BUNDLE_DIR" start >/dev/null || return 1
+    tm_runtime "$BUNDLE_DIR" start >/dev/null || return 1
   fi
   engine_finish_transaction
 }
@@ -138,15 +138,15 @@ engine_apply() (
   printf '%s\n' "$wanted" > "$before/wanted" || exit 1
   mv "$before" "$journal" || exit 1
   trap 'engine_recover' EXIT
-  kst_runtime "$BUNDLE_DIR" stop >/dev/null || exit 1
+  tm_runtime "$BUNDLE_DIR" stop >/dev/null || exit 1
   if [ -f "$STATE_FILE" ]; then
     cp -p "$STATE_FILE" "$journal/tailscaled.state" || exit 1
     touch "$journal/state-existed" || exit 1
   fi
   touch "$journal/snapshot-ready" || exit 1
-  kst_pointer engine-current "$target" || exit 1
+  tm_pointer engine-current "$target" || exit 1
   if [ "$wanted" = 1 ]; then
-    kst_runtime "$BUNDLE_DIR" start >/dev/null || exit 1
+    tm_runtime "$BUNDLE_DIR" start >/dev/null || exit 1
     if [ "$backend" = Running ]; then
       local deadline state
       deadline=$(($(date +%s) + 20))

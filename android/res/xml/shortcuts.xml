@@ -1,6 +1,6 @@
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
-    <share-target android:targetClass="io.github.bioluks.tailscaled.ShareActivity">
+    <share-target android:targetClass="com.askingmeric.tailmate.ShareActivity">
         <data android:mimeType="*/*" />
-        <category android:name="io.github.bioluks.tailscaled.FILE_TARGET" />
+        <category android:name="com.askingmeric.tailmate.FILE_TARGET" />
     </share-target>
 </shortcuts>

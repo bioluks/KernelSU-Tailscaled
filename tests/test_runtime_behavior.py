@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 @unittest.skipUnless(os.name == 'posix' and Path('/proc').exists(), 'Linux behavior tests; run in WSL')
 class RuntimeHarness(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='kst-runtime-')
+        self.temp = tempfile.TemporaryDirectory(prefix='tm-runtime-')
         self.root = Path(self.temp.name)
         self.bundle = self.root / 'bundle'
         self.state = self.root / 'state'
@@ -49,7 +49,7 @@ class RuntimeHarness(unittest.TestCase):
         (self.root / 'link').touch()
         (self.root / 'addresses').write_text('7: tailscale0 inet 100.100.1.1/32 scope global tailscale0\n')
         (self.root / 'routes').write_text('100.100.1.2 dev tailscale0 table 52 src 100.100.1.1\n')
-        self.env = dict(os.environ, BUNDLE_DIR=str(self.bundle), TS_DIR=str(self.state), MODDIR=str(self.mod), FIXTURE_ROOT=str(self.root), PATH=str(self.bin) + ':' + os.environ['PATH'], KST_SHELL='/bin/sh', KST_CLI_TIMEOUT='1', KST_START_TIMEOUT='3', KST_STOP_TIMEOUT='1', KST_LOCK_TIMEOUT='2', KST_STAGED_DIR=str(self.root / 'staged'))
+        self.env = dict(os.environ, BUNDLE_DIR=str(self.bundle), TS_DIR=str(self.state), MODDIR=str(self.mod), FIXTURE_ROOT=str(self.root), PATH=str(self.bin) + ':' + os.environ['PATH'], TM_SHELL='/bin/sh', TM_CLI_TIMEOUT='1', TM_START_TIMEOUT='3', TM_STOP_TIMEOUT='1', TM_LOCK_TIMEOUT='2', TM_STAGED_DIR=str(self.root / 'staged'))
         self.scripts = self.bundle / 'tailscale/scripts'
         self.service = self.scripts / 'tailscale-service'
 
@@ -275,9 +275,9 @@ class RuntimeBehaviorTests(RuntimeHarness):
 
     @unittest.skipUnless(shutil.which('mksh'), 'Install mksh for Android descriptor inheritance regression')
     def test_android_mksh_inherits_control_and_supervisor_locks(self):
-        env = dict(self.env, KST_SHELL=shutil.which('mksh'))
+        env = dict(self.env, TM_SHELL=shutil.which('mksh'))
         try:
-            result = subprocess.run([env['KST_SHELL'], str(self.service), 'start'],
+            result = subprocess.run([env['TM_SHELL'], str(self.service), 'start'],
                                     env=env, capture_output=True, text=True, timeout=15)
         except subprocess.TimeoutExpired as error:
             self.fail((error.stdout or b'').decode() + (error.stderr or b'').decode())
@@ -285,7 +285,7 @@ class RuntimeBehaviorTests(RuntimeHarness):
         self.assertNotIn('Bad file descriptor', result.stderr)
         time.sleep(0.5)
         self.assertEqual('running', self.status()['components']['supervisor'])
-        stopped = subprocess.run([env['KST_SHELL'], str(self.service), 'stop'],
+        stopped = subprocess.run([env['TM_SHELL'], str(self.service), 'stop'],
                                  env=env, capture_output=True, text=True, timeout=15)
         self.assertEqual(0, stopped.returncode, stopped.stdout + stopped.stderr)
 
@@ -446,7 +446,7 @@ class RuntimeBehaviorTests(RuntimeHarness):
         with lock.open('w') as handle:
             import fcntl
             fcntl.flock(handle, fcntl.LOCK_EX)
-            result = self.common('KST_LOCK_HELD=1; export KST_LOCK_HELD; with_control_lock true')
+            result = self.common('TM_LOCK_HELD=1; export TM_LOCK_HELD; with_control_lock true')
             self.assertEqual(result.returncode, 75, result.stderr)
             self.assertIn('lock', result.stderr.lower())
 
@@ -492,7 +492,7 @@ class RuntimeBehaviorTests(RuntimeHarness):
 
     def test_orphaned_supervisor_pass_cannot_stop_new_runtime(self):
         import fcntl
-        self.env['KST_LOCK_TIMEOUT'] = '10'
+        self.env['TM_LOCK_TIMEOUT'] = '10'
         self.start()
         supervisor = int((self.state / 'run/supervisor.pid').read_text().splitlines()[0])
         lock = self.state / 'run/control.lock'
@@ -792,7 +792,7 @@ class RuntimeBehaviorTests(RuntimeHarness):
         busybox = self.bin / 'busybox'
         busybox.write_text('#!/bin/sh\nprintf "%s\\n" "$1" >> "$FIXTURE_ROOT/applets"\nexec "$@"\n')
         busybox.chmod(0o755)
-        self.env['KST_BUSYBOX'] = str(busybox)
+        self.env['TM_BUSYBOX'] = str(busybox)
         self.start()
         self.assertIn('awk', (self.root / 'applets').read_text().splitlines())
 

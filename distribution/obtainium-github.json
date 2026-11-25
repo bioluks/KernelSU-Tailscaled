@@ -1,7 +1,7 @@
 {
-  "id": "io.github.bioluks.tailscaled",
-  "url": "https://github.com/bioluks/KernelSU-Tailscaled",
+  "id": "com.askingmeric.tailmate",
+  "url": "https://github.com/bioluks/TailMate",
   "author": "bioluks",
-  "name": "KernelSU-Tailscaled",
-  "additionalSettings": "{\"includePrereleases\":false,\"includeDrafts\":false,\"includeZips\":false,\"apkFilterRegEx\":\"^KernelSU-Tailscaled-companion-v[0-9]+\\\\.[0-9]+\\\\.[0-9]+\\\\.apk$\"}"
+  "name": "TailMate",
+  "additionalSettings": "{\"includePrereleases\":false,\"includeDrafts\":false,\"includeZips\":false,\"apkFilterRegEx\":\"^TailMate-companion-v[0-9]+\\\\.[0-9]+\\\\.[0-9]+(_tailscale[0-9.]+)?\\\\.apk$\"}"
 }

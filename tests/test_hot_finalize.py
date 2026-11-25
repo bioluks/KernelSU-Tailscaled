@@ -17,14 +17,14 @@ class HotFinalizeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         root = Path(self.temp.name)
-        self.mod = root / "modules/kernelsu-tailscaled"
+        self.mod = root / "modules/TailMate"
         self.state = root / "state"
         self.current = self.state / "releases/current"
-        self.staged = root / "modules_update/kernelsu-tailscaled"
+        self.staged = root / "modules_update/TailMate"
         for path in (self.mod / "webroot", self.current / "webroot", self.current / "bin", self.staged / "webroot", self.state / "run"):
             path.mkdir(parents=True, exist_ok=True)
         for directory in (self.mod, self.current, self.staged):
-            (directory / "module.prop").write_text("id=kernelsu-tailscaled\nversion=2.0.4\nversionCode=20000010\ndescription=test\n")
+            (directory / "module.prop").write_text("id=TailMate\nversion=2.0.4\nversionCode=20000010\ndescription=test\n")
             for name in ("control.sh", "action.sh", "service.sh", "uninstall.sh"):
                 (directory / name).write_text(name)
             (directory / "webroot/index.html").write_text("web")
@@ -48,7 +48,7 @@ class HotFinalizeTests(unittest.TestCase):
     def run_finalize(self):
         env = os.environ | {
             "MODDIR": str(self.mod), "TS_DIR": str(self.state),
-            "KST_STAGED_DIR": str(self.staged), "BUNDLE_DIR": str(self.current),
+            "TM_STAGED_DIR": str(self.staged), "BUNDLE_DIR": str(self.current),
         }
         return subprocess.run(["sh", str(SCRIPT)], env=env, capture_output=True, text=True)
 
@@ -83,8 +83,8 @@ class HotFinalizeTests(unittest.TestCase):
         hasher.chmod(0o755)
         env = os.environ | {
             "MODDIR": str(self.mod), "TS_DIR": str(self.state),
-            "KST_STAGED_DIR": str(self.staged), "BUNDLE_DIR": str(self.current),
-            "PATH": str(commands), "KST_BUSYBOX": str(commands / "missing"),
+            "TM_STAGED_DIR": str(self.staged), "BUNDLE_DIR": str(self.current),
+            "PATH": str(commands), "TM_BUSYBOX": str(commands / "missing"),
         }
         result = subprocess.run([shutil.which("sh"), str(SCRIPT)], env=env,
                                 capture_output=True, text=True)

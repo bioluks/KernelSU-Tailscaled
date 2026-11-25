@@ -39,7 +39,7 @@ initialize_hostname() {
   if [ -z "$hostname" ]; then hostname=$(hostname_slug "$(bounded 1 getprop ro.product.model 2>/dev/null)"); fi
   [ -n "$hostname" ] || hostname=android
   case "$current" in '' | localhost) ;; *) hostname="$current" ;; esac
-  if bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" set --hostname="$hostname" \
+  if bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" set --hostname="$hostname" \
     --accept-dns=false --accept-routes=false --exit-node= --advertise-routes= >/dev/null 2>&1; then
     cp "$DAEMON_PID" "$FRESH_APPLIED" || return 1
     log INFO 'Applied fresh hostname and conservative DNS/route preferences pending first profile persistence'
@@ -94,7 +94,7 @@ daemon_start() {
     launch_logged tailscaled "$DAEMON_PID" "$TAILSCALED_BIN" "--socket=$SOCKET_FILE" "$TAILSCALED_BIN" \
       --tun="$tun" --state="$STATE_FILE" --statedir="$TS_DIR" --socket="$SOCKET_FILE" --port="$TAILSCALE_PORT" --no-logs-no-support || return 1
   fi
-  deadline=$(($(date +%s) + KST_START_TIMEOUT))
+  deadline=$(($(date +%s) + TM_START_TIMEOUT))
   while [ "$(date +%s)" -lt "$deadline" ]; do
     if daemon_health; then
       if initialize_hostname; then

@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 /** Counts file bytes accepted by the CLI's stdin, not remote delivery acknowledgements. */
 final class TransferProgress {

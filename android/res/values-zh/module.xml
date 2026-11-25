@@ -38,7 +38,7 @@
     <string name="module_system_dns_disabled">系统级 DNS 已停用</string>
     <string name="module_updates">更新控制</string>
     <string name="module_runtime_facts">活动运行时：%1$s\n待应用运行时：%2$s\n上一运行时：%3$s</string>
-    <string name="module_staged_note">KernelSU 已暂存模块文件。请查看上方的活动运行时以确认所选版本；暂存文件不代表运行时需要重启。</string>
+    <string name="module_staged_note">Root 管理器已暂存模块文件。请查看上方的活动运行时以确认所选版本；暂存文件不代表运行时需要重启。</string>
     <string name="module_apply_staged">应用暂存运行时</string>
     <string name="module_apply_staged_confirm">应用暂存运行时？\n当前运行时将停止并切换至已验证的暂存版本。此操作不会重启设备。</string>
     <string name="module_engine">Tailscale 引擎</string>
@@ -105,7 +105,7 @@
     <string name="settings_history_summary">在本应用中保留发送和接收文件的列表。默认开启。</string>
     <string name="settings_history_clear_prompt">已关闭传输记录。是否同时清除已保存的记录？</string>
     <string name="settings_history_keep">保留</string>
-    <string name="dns_conflict_explain">本设备上的其他脚本或模块安装了自己的 53 端口 DNS 重定向。休眠的链在被跳转前不起作用；但若两者同时生效，DNS 查询会被重定向两次，可能导致解析失败。请只保留一个。KernelSU-Tailscaled 从不修改这些规则。\n\n发现的内容：</string>
+    <string name="dns_conflict_explain">本设备上的其他脚本或模块安装了自己的 53 端口 DNS 重定向。休眠的链在被跳转前不起作用；但若两者同时生效，DNS 查询会被重定向两次，可能导致解析失败。请只保留一个。TailMate 从不修改这些规则。\n\n发现的内容：</string>
     <string name="private_dns_explain">Android 私人 DNS 已设为指定提供商（严格 DNS-over-TLS）。Android 会通过 853 端口发送加密 DNS，从而绕过 53 端口重定向，大多数应用将无法解析 Tailscale 名称。\n\n关闭后 Android 使用普通 DNS，系统级 DNS 会将其发送到你的 tailnet 解析器。可在 Android 设置 → 网络 → 私人 DNS 中重新开启。</string>
     <string name="private_dns_turn_off">关闭私人 DNS</string>
     <string name="private_dns_done">Android 私人 DNS 已关闭</string>

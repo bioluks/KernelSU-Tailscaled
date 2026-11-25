@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 public final class TransferProgressTest {
     private static void equal(long expected, long actual) {

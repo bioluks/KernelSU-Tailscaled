@@ -57,8 +57,8 @@ function taildrop_broadcast(saved,    command) {
     # Parsed CLI text is never executable; just one quoted basename argument.
     command = (taildrop_busybox != "" ? taildrop_quote(taildrop_busybox) " " : "")
     command = command "timeout -s KILL 3 am broadcast --user current --include-stopped-packages"
-    command = command " -n io.github.bioluks.tailscaled/.ReceiveReceiver"
-    command = command " -a io.github.bioluks.tailscaled.RECEIVED --es filename " taildrop_quote(saved)
+    command = command " -n com.askingmeric.tailmate/.ReceiveReceiver"
+    command = command " -a com.askingmeric.tailmate.RECEIVED --es filename " taildrop_quote(saved)
     system(command " </dev/null >/dev/null 2>&1")
 }
 action == "validate-filename" {

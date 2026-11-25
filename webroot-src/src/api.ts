@@ -31,7 +31,7 @@ export interface CommandResult {
   exitCode: number;
 }
 
-const SERVICE = "/data/adb/modules/kernelsu-tailscaled/control.sh";
+const SERVICE = "/data/adb/modules/TailMate/control.sh";
 const ACTIONS: ReadonlySet<string> = new Set([
   "status-json",
   "enable",

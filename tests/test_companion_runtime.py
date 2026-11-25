@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import os
 import shutil
@@ -7,15 +8,82 @@ import sys
 import tempfile
 import time
 import unittest
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def load_apk_builder():
+    spec = importlib.util.spec_from_file_location('tailmate_apk_build', ROOT / 'android/build.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class CompanionUnsignedBuildTests(unittest.TestCase):
+    """--unsigned must need no keystore and emit the same aligned bytes signed mode keeps."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='tm-apk-')
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name) / 'repo'
+        (self.root / 'android/src').mkdir(parents=True)
+        shutil.copyfile(ROOT / 'module.prop', self.root / 'module.prop')
+        shutil.copyfile(ROOT / 'android/AndroidManifest.xml', self.root / 'android/AndroidManifest.xml')
+        (self.root / 'android/src/Stub.java').write_text('class Stub {}\n')
+        self.builder = load_apk_builder()
+        self.builder.ROOT = self.root
+        self.tools = Path(self.temp.name) / 'build-tools'
+        self.builder.sdk_tools = lambda sdk, pinned: (self.tools, Path(self.temp.name) / 'android.jar')
+        self.builder.jdk_tool = lambda name, pinned: Path(name)
+        self.calls = []
+        self.builder.run = self.fake_run
+
+    def fake_run(self, command, *, env=None, private=False):
+        name, args = Path(command[0]).name, [str(part) for part in command[1:]]
+        self.calls.append(name)
+        if name == 'aapt2' and args[0] == 'link':
+            self.manifest = Path(args[args.index('--manifest') + 1]).read_text()
+            with zipfile.ZipFile(args[args.index('-o') + 1], 'w') as apk:
+                apk.writestr('AndroidManifest.xml', b'binary-manifest')
+                apk.writestr('resources.arsc', b'table')
+        elif name == 'd8':
+            (Path(args[args.index('--output') + 1]) / 'classes.dex').write_bytes(b'dex\n')
+        elif name == 'zipalign' and args[0] == '-f':
+            shutil.copyfile(args[-2], args[-1])
+        elif name == 'apksigner':
+            raise AssertionError('unsigned mode must not sign')
+
+    def test_unsigned_mode_needs_no_signing_and_matches_reproducibility_copy(self):
+        output = Path(self.temp.name) / 'dist'
+        environment = {name: os.environ.pop(name) for name in self.builder.SIGNING_VARIABLES
+                       if name in os.environ}
+        self.addCleanup(os.environ.update, environment)
+        args = self.builder.argparse.Namespace(sdk=Path('sdk'), output=output, debug=False,
+                                               unsigned=True, debug_keystore=Path('unused'))
+        version, _ = self.builder.module_version()
+
+        built = self.builder.build(args)
+
+        self.assertEqual(output.resolve() / f'TailMate-companion-v{version}-unsigned.apk', built)
+        self.assertEqual((self.root / 'android/build/companion-unsigned.apk').read_bytes(), built.read_bytes())
+        with zipfile.ZipFile(built) as apk:
+            self.assertEqual(['AndroidManifest.xml', 'classes.dex', 'resources.arsc'], apk.namelist())
+        self.assertIn('debuggable="false"', self.manifest)
+        self.assertNotIn('apksigner', self.calls)
+
+    def test_unsigned_and_debug_are_mutually_exclusive(self):
+        result = subprocess.run([sys.executable, str(ROOT / 'android/build.py'), '--debug', '--unsigned'],
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(2, result.returncode)
+        self.assertIn('not allowed with argument', result.stderr)
+
+
 @unittest.skipUnless(os.name == 'posix' and Path('/proc').exists(), 'Linux runtime ownership tests')
 class CompanionRuntimeTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='kst-companion-')
+        self.temp = tempfile.TemporaryDirectory(prefix='tm-companion-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.bundle = self.root / 'module'
@@ -32,9 +100,9 @@ class CompanionRuntimeTests(unittest.TestCase):
         (self.state / 'logs').mkdir()
         self.env = dict(os.environ, MODDIR=str(self.bundle), TS_DIR=str(self.state),
                         BUNDLE_DIR=str(self.bundle), FIXTURE_ROOT=str(self.root),
-                        KST_SHELL='/bin/sh', KST_BUSYBOX='/nonexistent',
-                        KST_LEGACY_DIR=str(self.root / 'legacy'),
-                        KST_CLI_TIMEOUT='2', KST_LOCK_TIMEOUT='1')
+                        TM_SHELL='/bin/sh', TM_BUSYBOX='/nonexistent',
+                        TM_LEGACY_DIR=str(self.root / 'legacy'),
+                        TM_CLI_TIMEOUT='2', TM_LOCK_TIMEOUT='1')
         self.targets = '100.100.1.2\tpeer\n100.100.1.3\tother\toffline; last seen 1m0s ago\n'
         (self.root / 'targets').write_text(self.targets)
         cli = self.bin / 'tailscale'
@@ -180,7 +248,7 @@ sys.exit(int(os.environ.get('SEND_EXIT', '0')))
 @unittest.skipUnless(os.name == 'posix' and shutil.which('awk'), 'POSIX awk log tests')
 class CompanionReceiptTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='kst-receipt-')
+        self.temp = tempfile.TemporaryDirectory(prefix='tm-receipt-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.bin = self.root / 'bin'
@@ -212,8 +280,8 @@ class CompanionReceiptTests(unittest.TestCase):
                              'moved 1/1 files\nwaiting for file...')
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([['broadcast', '--user', 'current', '--include-stopped-packages',
-                           '-n', 'io.github.bioluks.tailscaled/.ReceiveReceiver',
-                           '-a', 'io.github.bioluks.tailscaled.RECEIVED', '--es', 'filename', filename]],
+                           '-n', 'com.askingmeric.tailmate/.ReceiveReceiver',
+                           '-a', 'com.askingmeric.tailmate.RECEIVED', '--es', 'filename', filename]],
                          self.broadcasts())
         self.assertFalse((self.root / 'injected').exists())
 

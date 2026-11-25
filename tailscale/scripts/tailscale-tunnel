@@ -19,7 +19,7 @@ tunnel_start() {
   local template="$BUNDLE_DIR/tailscale/config/hev-socks5-tunnel.yaml" config="$RUN_DIR/hev-socks5-tunnel.yaml" deadline
   sed -e "s/name: tailscale0/name: $TUN_NAME/" -e "s/port: 1055/port: ${SOCKS_LISTEN##*:}/" "$template" > "$config" || return 1
   launch_logged tunnel "$TUNNEL_PID" "$TUNNEL_BIN" '' "$TUNNEL_BIN" "$config" || return 1
-  deadline=$(($(date +%s) + KST_START_TIMEOUT))
+  deadline=$(($(date +%s) + TM_START_TIMEOUT))
   while [ "$(date +%s)" -lt "$deadline" ]; do
     if tunnel_health; then
       # Add only our explicit userspace route; never replace an existing route.

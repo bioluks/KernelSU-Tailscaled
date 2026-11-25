@@ -111,7 +111,7 @@ class RuntimeStaticTests(unittest.TestCase):
         self.assertIn('"$MODPATH/bin/tailscale"', source)
         self.assertIn('"$MODPATH/bin/tailscaled"', source)
         self.assertIn('"$MODPATH/bundle.sha256"', source)
-        self.assertIn('kst_verify_bundle "$MODPATH"', source)
+        self.assertIn('tm_verify_bundle "$MODPATH"', source)
         self.assertIn('scripts/install-runtime.sh', source)
         self.assertNotIn('/data/adb/tailscale', source)
         self.assertNotIn('> "$STATE_FILE"', source)

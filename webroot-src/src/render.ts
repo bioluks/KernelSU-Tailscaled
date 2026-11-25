@@ -87,7 +87,7 @@ export function renderDashboard(root: HTMLElement, status: RuntimeStatus): void 
   root.replaceChildren();
 
   const header = document.createElement("header");
-  appendText(header, "h1", "KernelSU-Tailscaled");
+  appendText(header, "h1", "TailMate");
   appendText(header, "p", status.hostname ?? t("Unknown device", "设备名称未知"), "device-name");
   const backendLabels: Record<string, string> = {
     NeedsLogin: t("Sign-in required", "需要登录"), NeedsMachineAuth: t("Device approval required", "需要批准设备"),
@@ -121,7 +121,7 @@ export function renderDashboard(root: HTMLElement, status: RuntimeStatus): void 
   updateControls.append(updateFacts);
   addButton(updateControls, 'engine-page', t("Tailscale engine update", "Tailscale 引擎更新"), t("Check and update the official Tailscale engine", "检查和更新官方 Tailscale 引擎"));
   if (status.runtime.stagedVersion) {
-    appendText(updateControls, "p", t("KernelSU has staged module files. Check Current runtime above to see which version is selected; the staged files alone do not mean the runtime needs a reboot.", "KernelSU 已暂存模块文件。请查看上方的当前运行时以确认所选版本；暂存文件不代表运行时需要重启。"), "notice");
+    appendText(updateControls, "p", t("The root manager has staged module files. Check Current runtime above to see which version is selected; the staged files alone do not mean the runtime needs a reboot.", "Root 管理器已暂存模块文件。请查看上方的当前运行时以确认所选版本；暂存文件不代表运行时需要重启。"), "notice");
     addButton(updateControls, "apply-staged", t("Apply staged runtime", "应用暂存运行时"), t("Apply staged runtime only", "仅应用暂存运行时"));
   }
   root.append(updateControls);
@@ -256,7 +256,7 @@ export function renderEngineUpdate(root: HTMLElement, status: EngineStatus): voi
 export function renderLogs(root: HTMLElement, logs: string, kind: "logs" | "diagnostics" = "logs"): void {
   root.replaceChildren();
   const header = document.createElement("header");
-  appendText(header, "p", "KernelSU-Tailscaled", "eyebrow");
+  appendText(header, "p", "TailMate", "eyebrow");
   appendText(header, "h1", kind === "logs" ? t("Runtime logs", "运行日志") : t("Diagnostic records", "诊断记录"));
   appendLanguageSelector(header);
   root.append(header);
@@ -273,7 +273,7 @@ export function renderLogs(root: HTMLElement, logs: string, kind: "logs" | "diag
 export function renderMessage(root: HTMLElement, title: string, message: string, retryAction = "refresh"): void {
   root.replaceChildren();
   const header = document.createElement("header");
-  appendText(header, "p", "KernelSU-Tailscaled", "eyebrow");
+  appendText(header, "p", "TailMate", "eyebrow");
   appendText(header, "h1", title);
   appendLanguageSelector(header);
   root.append(header);

@@ -4,8 +4,8 @@
 
 SCRIPT_DIR=$(CDPATH='' cd -- "${SCRIPT_DIR:-${0%/*}}" 2>/dev/null && pwd -P)
 BUNDLE_DIR=${BUNDLE_DIR:-${SCRIPT_DIR%/tailscale/scripts}}
-MODDIR=${MODDIR:-/data/adb/modules/kernelsu-tailscaled}
-TS_DIR=${TS_DIR:-/data/adb/kernelsu-tailscaled}
+MODDIR=${MODDIR:-/data/adb/modules/TailMate}
+TS_DIR=${TS_DIR:-/data/adb/TailMate}
 . "$BUNDLE_DIR/tailscale/scripts/engine-lib.sh"
 engine_select || { echo 'Invalid engine selection' >&2; exit 1; }
 BIN_DIR="$ENGINE_DIR/bin"
@@ -28,13 +28,19 @@ DAEMON_PID="$RUN_DIR/tailscaled.pid"
 WEB_PID="$RUN_DIR/web.pid"
 TUNNEL_PID="$RUN_DIR/tunnel.pid"
 TAILDROP_PID="$RUN_DIR/taildrop.pid"
-KST_SHELL=${KST_SHELL:-/system/bin/sh}
-KST_BUSYBOX=${KST_BUSYBOX:-/data/adb/ksu/bin/busybox}
-KST_LOCK_TIMEOUT=${KST_LOCK_TIMEOUT:-15}
-KST_CLI_TIMEOUT=${KST_CLI_TIMEOUT:-3}
-KST_START_TIMEOUT=${KST_START_TIMEOUT:-15}
-KST_STAGED_DIR=${KST_STAGED_DIR:-/data/adb/modules_update/kernelsu-tailscaled}
-export BUNDLE_DIR MODDIR TS_DIR KST_SHELL KST_BUSYBOX
+TM_SHELL=${TM_SHELL:-/system/bin/sh}
+# Root managers ship BusyBox in different places (KernelSU, APatch, Magisk).
+# An explicit TM_BUSYBOX always wins; none found keeps the toybox fallback.
+if [ -z "${TM_BUSYBOX:-}" ]; then
+  for TM_BUSYBOX in /data/adb/ksu/bin/busybox /data/adb/ap/bin/busybox /data/adb/magisk/busybox; do
+    [ ! -x "$TM_BUSYBOX" ] || break
+  done
+fi
+TM_LOCK_TIMEOUT=${TM_LOCK_TIMEOUT:-15}
+TM_CLI_TIMEOUT=${TM_CLI_TIMEOUT:-3}
+TM_START_TIMEOUT=${TM_START_TIMEOUT:-15}
+TM_STAGED_DIR=${TM_STAGED_DIR:-/data/adb/modules_update/TailMate}
+export BUNDLE_DIR MODDIR TS_DIR TM_SHELL TM_BUSYBOX
 umask 077
 
 # Detect NUL-delimited read once; Android can inspect argv without launching tr.
@@ -63,22 +69,22 @@ ensure_dirs() {
 
 flock_command() {
   # Android mksh closes exec-created descriptors unless each external call keeps them.
-  if [ -x "$KST_BUSYBOX" ]; then
-    case "$2" in 8) "$KST_BUSYBOX" flock "$@" 8>&8 ;; 9) "$KST_BUSYBOX" flock "$@" 9>&9 ;; *) return 2 ;; esac
+  if [ -x "$TM_BUSYBOX" ]; then
+    case "$2" in 8) "$TM_BUSYBOX" flock "$@" 8>&8 ;; 9) "$TM_BUSYBOX" flock "$@" 9>&9 ;; *) return 2 ;; esac
   else
     case "$2" in 8) flock "$@" 8>&8 ;; 9) flock "$@" 9>&9 ;; *) return 2 ;; esac
   fi
 }
 
 awk_command() {
-  if [ -x "$KST_BUSYBOX" ]; then "$KST_BUSYBOX" awk "$@"; else command awk "$@"; fi
+  if [ -x "$TM_BUSYBOX" ]; then "$TM_BUSYBOX" awk "$@"; else command awk "$@"; fi
 }
 
 with_control_lock() (
   exec 8>&-
   [ -d "$RUN_DIR" ] && [ -d "$LOG_DIR" ] && [ -d "$CONFIG_DIR" ] || ensure_dirs || exit 1
   local expected actual deadline
-  if [ "${KST_LOCK_HELD:-}" = 1 ]; then
+  if [ "${TM_LOCK_HELD:-}" = 1 ]; then
     expected=$(stat -Lc '%d:%i' "$RUN_DIR/control.lock" 2>/dev/null)
     actual=$(stat -Lc '%d:%i' /proc/self/fd/9 2>/dev/null 9>&9)
     if [ -n "$expected" ] && [ "$actual" = "$expected" ]; then
@@ -86,19 +92,19 @@ with_control_lock() (
       exit $?
     fi
   fi
-  unset KST_LOCK_HELD
+  unset TM_LOCK_HELD
   exec 9>"$RUN_DIR/control.lock" || exit 1
   deadline=
   until flock_command -n 9; do
-    [ -n "$deadline" ] || deadline=$(($(date +%s) + KST_LOCK_TIMEOUT))
+    [ -n "$deadline" ] || deadline=$(($(date +%s) + TM_LOCK_TIMEOUT))
     if [ "$(date +%s)" -ge "$deadline" ]; then
       echo 'Runtime control lock timed out' >&2
       exit 75
     fi
     sleep 0.1
   done
-  KST_LOCK_HELD=1
-  export KST_LOCK_HELD
+  TM_LOCK_HELD=1
+  export TM_LOCK_HELD
   "$@" 9>&9
 )
 
@@ -106,8 +112,8 @@ bounded() (
   local seconds="$1"
   shift
   exec 9>&- 8>&-
-  unset KST_LOCK_HELD
-  if [ -x "$KST_BUSYBOX" ]; then exec "$KST_BUSYBOX" timeout -s KILL "$seconds" "$@"; fi
+  unset TM_LOCK_HELD
+  if [ -x "$TM_BUSYBOX" ]; then exec "$TM_BUSYBOX" timeout -s KILL "$seconds" "$@"; fi
   exec timeout -s KILL "$seconds" "$@"
 )
 
@@ -273,7 +279,7 @@ stop_owned() {
   if owned_alive "$file" "$expected" "$required"; then
     pid=$(read_pid "$file")
     kill -TERM "$pid" 2>/dev/null || true
-    deadline=$(($(date +%s) + ${KST_STOP_TIMEOUT:-3}))
+    deadline=$(($(date +%s) + ${TM_STOP_TIMEOUT:-3}))
     while owned_alive "$file" "$expected" "$required" && [ "$(date +%s)" -lt "$deadline" ]; do sleep 0.1; done
     if owned_alive "$file" "$expected" "$required"; then
       kill -KILL "$pid" 2>/dev/null || true
@@ -307,21 +313,21 @@ launch_logged() {
   stop_owned "$RUN_DIR/$name-log.pid" "$SCRIPT_DIR/log-filter.awk" || return 1
   rm -f "$fifo"
   mkfifo -m 0600 "$fifo" || return 1
-  (exec 9>&- 8>&-; unset KST_LOCK_HELD
+  (exec 9>&- 8>&-; unset TM_LOCK_HELD
     set --
     if [ "$name" = taildrop ]; then
       LC_ALL=C
       export LC_ALL
       set -- -v taildrop_notify=1 -f "$SCRIPT_DIR/taildrop-filter.awk"
-      [ ! -x "$KST_BUSYBOX" ] || set -- "$@" -v "taildrop_busybox=$KST_BUSYBOX"
+      [ ! -x "$TM_BUSYBOX" ] || set -- "$@" -v "taildrop_busybox=$TM_BUSYBOX"
     fi
-    if [ -x "$KST_BUSYBOX" ]; then
-      exec "$KST_BUSYBOX" awk "$@" -v destination="$LOG_DIR/$name.log" -f "$SCRIPT_DIR/log-filter.awk" < "$fifo"
+    if [ -x "$TM_BUSYBOX" ]; then
+      exec "$TM_BUSYBOX" awk "$@" -v destination="$LOG_DIR/$name.log" -f "$SCRIPT_DIR/log-filter.awk" < "$fifo"
     fi
     exec awk "$@" -v destination="$LOG_DIR/$name.log" -f "$SCRIPT_DIR/log-filter.awk" < "$fifo"
   ) </dev/null >/dev/null 2>&1 &
   logger=$!
-  (exec 9>&- 8>&-; unset KST_LOCK_HELD; trap '' HUP; exec "$@" > "$fifo" 2>&1) </dev/null >/dev/null 2>&1 &
+  (exec 9>&- 8>&-; unset TM_LOCK_HELD; trap '' HUP; exec "$@" > "$fifo" 2>&1) </dev/null >/dev/null 2>&1 &
   child=$!
   write_pid "$RUN_DIR/$name-log.pid" "$logger" "$SCRIPT_DIR/log-filter.awk" || true
   write_pid "$record" "$child" "$identity" "$required"
@@ -346,7 +352,7 @@ cli_json() (
   file=$(mktemp "$RUN_DIR/query.XXXXXX") || exit 1
   trap 'rm -f "$file"' EXIT HUP INT TERM
   # Raw replies have a disk cap and timeout. Raw prefs never leave this scope.
-  (ulimit -f 1024; bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" "$@" > "$file" 2>/dev/null) || exit 1
+  (ulimit -f 1024; bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" "$@" > "$file" 2>/dev/null) || exit 1
   [ "$(wc -c < "$file")" -le 524288 ] || exit 1
   json_read "$action" < "$file"
 )
@@ -355,8 +361,8 @@ socket_ready() { [ -S "$SOCKET_FILE" ] && cli_json backend status --json >/dev/n
 
 tcp_ready() {
   local host="${1%:*}" port="${1##*:}"
-  if [ -x "$KST_BUSYBOX" ]; then
-    bounded 1 "$KST_BUSYBOX" nc -z -w 1 "$host" "$port" </dev/null >/dev/null 2>&1
+  if [ -x "$TM_BUSYBOX" ]; then
+    bounded 1 "$TM_BUSYBOX" nc -z -w 1 "$host" "$port" </dev/null >/dev/null 2>&1
   else
     bounded 1 nc -z -w 1 "$host" "$port" </dev/null >/dev/null 2>&1
   fi
@@ -431,7 +437,7 @@ native_health() {
     }
   done
   peers=$(printf '%s' "$status" | json_read peer-ips)
-  deadline=$(($(date +%s) + KST_CLI_TIMEOUT))
+  deadline=$(($(date +%s) + TM_CLI_TIMEOUT))
   for peer in $peers; do
     case "$peer" in *[!0-9a-fA-F:.]* | '') continue ;; esac
     if [ "$(date +%s)" -ge "$deadline" ]; then

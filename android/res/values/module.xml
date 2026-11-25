@@ -38,7 +38,7 @@
     <string name="module_system_dns_disabled">System-wide DNS disabled</string>
     <string name="module_updates">Updates</string>
     <string name="module_runtime_facts">Active runtime: %1$s\nStaged runtime: %2$s\nPrevious runtime: %3$s</string>
-    <string name="module_staged_note">KernelSU has staged module files. Check Active runtime above to see which version is selected; the staged files alone do not mean the runtime needs a reboot.</string>
+    <string name="module_staged_note">Your root manager has staged module files. Check Active runtime above to see which version is selected; the staged files alone do not mean the runtime needs a reboot.</string>
     <string name="module_apply_staged">Apply staged runtime</string>
     <string name="module_apply_staged_confirm">Apply the staged runtime?\nThe current runtime will stop and switch to the verified staged version. This does not reboot the device.</string>
     <string name="module_engine">Tailscale engine</string>
@@ -105,7 +105,7 @@
     <string name="settings_history_summary">Keep a list of sent and received files in this app. On by default.</string>
     <string name="settings_history_clear_prompt">History is off. Also clear the entries already stored?</string>
     <string name="settings_history_keep">Keep</string>
-    <string name="dns_conflict_explain">Another script or module on this device installs its own port-53 DNS redirect. A dormant chain does nothing until something jumps to it, but if both are active, DNS queries are redirected twice and resolution can break. Keep only one active. KernelSU-Tailscaled never edits these rules.\n\nWhat was found:</string>
+    <string name="dns_conflict_explain">Another script or module on this device installs its own port-53 DNS redirect. A dormant chain does nothing until something jumps to it, but if both are active, DNS queries are redirected twice and resolution can break. Keep only one active. TailMate never edits these rules.\n\nWhat was found:</string>
     <string name="private_dns_explain">Android Private DNS is set to a specific provider (strict DNS-over-TLS). Android then sends DNS encrypted on port 853, which bypasses the port-53 redirect, so Tailscale names do not resolve in most apps.\n\nTurning it off makes Android use plain DNS, which system-wide DNS sends to your tailnet resolver. You can turn it back on in Android Settings → Network → Private DNS.</string>
     <string name="private_dns_turn_off">Turn Private DNS off</string>
     <string name="private_dns_done">Android Private DNS is off</string>

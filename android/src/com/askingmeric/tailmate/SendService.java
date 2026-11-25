@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 import android.app.*;
 import android.content.*;
@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public final class SendService extends Service {
-    static final String CANCEL = "io.github.bioluks.tailscaled.CANCEL";
+    static final String CANCEL = "com.askingmeric.tailmate.CANCEL";
     static volatile boolean active;
     private volatile boolean cancelled;
     private volatile Process process;
@@ -157,9 +157,9 @@ public final class SendService extends Service {
                 if (cancelled) { process.destroy(); throw new IOException("Cancelled"); }
                 InputStream reply = process.getInputStream();
                 String first = readHandshake(reply);
-                if (first == null || !first.matches("KST_PID=[1-9][0-9]{0,9}:[0-9]{1,20}"))
+                if (first == null || !first.matches("TM_PID=[1-9][0-9]{0,9}:[0-9]{1,20}"))
                     throw new IOException("Root denied or module unavailable");
-                rootPid = first.substring(8);
+                rootPid = first.substring("TM_PID=".length());
                 if (cancelled) { RootCommand.cancel(rootPid); throw new IOException("Cancelled"); }
                 // Drain CLI output during upload so a full pipe cannot deadlock sending.
                 RootCommand.Capture output = new RootCommand.Capture(reply);

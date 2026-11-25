@@ -1,4 +1,4 @@
-package io.github.bioluks.tailscaled;
+package com.askingmeric.tailmate;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 final class RootCommand {
-    static final String CONTROL = "/data/adb/modules/kernelsu-tailscaled/control.sh";
+    static final String CONTROL = "/data/adb/modules/TailMate/control.sh";
 
     // Managers expose su at different paths; the app PATH is not guaranteed to
     // contain any of them. Try the known absolute locations before "su".
@@ -99,7 +99,7 @@ final class RootCommand {
         // Include /proc start time: a recycled PID must never authorize a kill.
         String handshake = "IFS= read -r s < /proc/$$/stat || exit; s=${s##*) }; "
                 + "i=1; while [ $i -lt 20 ]; do s=${s#* }; i=$((i+1)); done; "
-                + "echo KST_PID=$$:${s%% *}; exec sh " + CONTROL + " taildrop-send";
+                + "echo TM_PID=$$:${s%% *}; exec sh " + CONTROL + " taildrop-send";
         return rootProcess(handshake).redirectErrorStream(true).start();
     }
 
@@ -116,15 +116,15 @@ final class RootCommand {
                 + "IFS= read -r -d '' c <&7; IFS= read -r -d '' d <&7; "
                 + "e=$(readlink /proc/$p/exe) || exit; "
                 + "case \"$b\" in "
-                + "/data/adb/modules/kernelsu-tailscaled/control.sh|"
-                + "/data/adb/kernelsu-tailscaled/releases/*/scripts/runtime-control.sh|"
-                + "/data/adb/kernelsu-tailscaled/releases/*/tailscale/scripts/tailscale-service) "
+                + "/data/adb/modules/TailMate/control.sh|"
+                + "/data/adb/TailMate/releases/*/scripts/runtime-control.sh|"
+                + "/data/adb/TailMate/releases/*/tailscale/scripts/tailscale-service) "
                 + "[ \"$e\" = \"$(readlink -f /system/bin/sh)\" ] && "
                 + "[ \"$c\" = taildrop-send ] && [ -z \"$d\" ] || exit ;; "
-                + "--socket=/data/adb/kernelsu-tailscaled/run/tailscaled.sock) "
+                + "--socket=/data/adb/TailMate/run/tailscaled.sock) "
                 + "[ \"$c\" = file ] && [ \"$d\" = cp ] || exit; "
-                + "case \"$a\" in /data/adb/kernelsu-tailscaled/releases/*/bin/tailscale|"
-                + "/data/adb/kernelsu-tailscaled/engines/*/bin/tailscale) ;; *) exit ;; esac; "
+                + "case \"$a\" in /data/adb/TailMate/releases/*/bin/tailscale|"
+                + "/data/adb/TailMate/engines/*/bin/tailscale) ;; *) exit ;; esac; "
                 + "[ \"$e\" = \"$(readlink -f \"$a\")\" ] || exit; "
                 + "IFS= read -r -d '' n <&7; IFS= read -r -d '' dash <&7; "
                 + "IFS= read -r -d '' target <&7; IFS= read -r -d '' extra <&7; "

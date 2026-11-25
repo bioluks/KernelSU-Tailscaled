@@ -1,34 +1,39 @@
 #!/system/bin/sh
 
-MODDIR=${MODDIR:-/data/adb/modules/kernelsu-tailscaled}
-TS_DIR=${TS_DIR:-/data/adb/kernelsu-tailscaled}
-KST_STAGED_DIR=${KST_STAGED_DIR:-/data/adb/modules_update/kernelsu-tailscaled}
+MODDIR=${MODDIR:-/data/adb/modules/TailMate}
+TS_DIR=${TS_DIR:-/data/adb/TailMate}
+TM_STAGED_DIR=${TM_STAGED_DIR:-/data/adb/modules_update/TailMate}
 BUNDLE_DIR=${BUNDLE_DIR:-$TS_DIR/current}
 
 [ -f "$MODDIR/update" ] && [ ! -L "$MODDIR/update" ] || exit 0
-[ -d "$KST_STAGED_DIR" ] && [ ! -L "$KST_STAGED_DIR" ] || exit 0
+[ -d "$TM_STAGED_DIR" ] && [ ! -L "$TM_STAGED_DIR" ] || exit 0
 
 # A stopped or logged-out runtime cannot finish a hot install. Check this before
 # hashing the large bundled engines on every deferred attempt.
 [ "$(sed -n '1p' "$TS_DIR/run/wanted" 2>/dev/null)" = 1 ] || exit 0
 [ "$(sed -n '1p' "$TS_DIR/run/lifecycle" 2>/dev/null)" = running ] || exit 0
 [ -S "$TS_DIR/run/tailscaled.sock" ] || exit 0
-KST_BUSYBOX=${KST_BUSYBOX:-/data/adb/ksu/bin/busybox}
-KST_CLI_TIMEOUT=${KST_CLI_TIMEOUT:-3}
-if [ -x "$KST_BUSYBOX" ]; then
-  "$KST_BUSYBOX" timeout -s KILL "$KST_CLI_TIMEOUT" "$BUNDLE_DIR/bin/tailscale" --socket="$TS_DIR/run/tailscaled.sock" ip -4 >/dev/null 2>&1 || exit 0
+# Same manager BusyBox order as bundle-lib.sh; an explicit TM_BUSYBOX wins.
+if [ -z "${TM_BUSYBOX:-}" ]; then
+  for TM_BUSYBOX in /data/adb/ksu/bin/busybox /data/adb/ap/bin/busybox /data/adb/magisk/busybox; do
+    [ ! -x "$TM_BUSYBOX" ] || break
+  done
+fi
+TM_CLI_TIMEOUT=${TM_CLI_TIMEOUT:-3}
+if [ -x "$TM_BUSYBOX" ]; then
+  "$TM_BUSYBOX" timeout -s KILL "$TM_CLI_TIMEOUT" "$BUNDLE_DIR/bin/tailscale" --socket="$TS_DIR/run/tailscaled.sock" ip -4 >/dev/null 2>&1 || exit 0
 else
-  timeout -s KILL "$KST_CLI_TIMEOUT" "$BUNDLE_DIR/bin/tailscale" --socket="$TS_DIR/run/tailscaled.sock" ip -4 >/dev/null 2>&1 || exit 0
+  timeout -s KILL "$TM_CLI_TIMEOUT" "$BUNDLE_DIR/bin/tailscale" --socket="$TS_DIR/run/tailscaled.sock" ip -4 >/dev/null 2>&1 || exit 0
 fi
 
-[ -f "$BUNDLE_DIR/bundle.sha256" ] && [ -f "$KST_STAGED_DIR/bundle.sha256" ] || exit 0
-cmp -s "$BUNDLE_DIR/bundle.sha256" "$KST_STAGED_DIR/bundle.sha256" || exit 0
+[ -f "$BUNDLE_DIR/bundle.sha256" ] && [ -f "$TM_STAGED_DIR/bundle.sha256" ] || exit 0
+cmp -s "$BUNDLE_DIR/bundle.sha256" "$TM_STAGED_DIR/bundle.sha256" || exit 0
 (cd "$BUNDLE_DIR" && sha256sum -c bundle.sha256 >/dev/null 2>&1) || exit 0
-(cd "$KST_STAGED_DIR" && sha256sum -c bundle.sha256 >/dev/null 2>&1) || exit 0
+(cd "$TM_STAGED_DIR" && sha256sum -c bundle.sha256 >/dev/null 2>&1) || exit 0
 
 prop() { sed -n "s/^$2=//p" "$1/module.prop" 2>/dev/null | head -n 1; }
 code=$(prop "$BUNDLE_DIR" versionCode)
-[ -n "$code" ] && [ "$code" = "$(prop "$KST_STAGED_DIR" versionCode)" ] && \
+[ -n "$code" ] && [ "$code" = "$(prop "$TM_STAGED_DIR" versionCode)" ] && \
   [ "$code" = "$(prop "$MODDIR" versionCode)" ] || exit 0
 
 for name in control.sh action.sh service.sh uninstall.sh; do
@@ -46,4 +51,4 @@ done < "$BUNDLE_DIR/bundle.sha256"
 [ "$manager_view_valid" = 1 ] || exit 0
 
 rm -f "$MODDIR/update" || exit 0
-rm -rf "$KST_STAGED_DIR"
+rm -rf "$TM_STAGED_DIR"

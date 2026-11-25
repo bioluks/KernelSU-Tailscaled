@@ -14,19 +14,19 @@ ROOT = Path(__file__).resolve().parents[1]
 @unittest.skipUnless(os.name == "posix", "Execute under Linux/WSL for POSIX lifecycle behavior")
 class InstallLifecycleTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="kst-install-")
+        self.temp = tempfile.TemporaryDirectory(prefix="tm-install-")
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
-        self.module = self.base / "modules/kernelsu-tailscaled"
-        self.staged = self.base / "modules_update/kernelsu-tailscaled"
+        self.module = self.base / "modules/TailMate"
+        self.staged = self.base / "modules_update/TailMate"
         self.state = self.base / "state"
         self.legacy = self.base / "legacy"
         self.old_module = self.base / "modules/magisk-tailscaled"
         self.trace = self.base / "trace"
         self.make_bundle(self.module, 20000001)
         self.env = dict(os.environ, MODDIR=str(self.module), TS_DIR=str(self.state),
-                        KST_STAGED_DIR=str(self.staged), KST_LEGACY_DIR=str(self.legacy),
-                        KST_LEGACY_MODULE=str(self.old_module), TRACE=str(self.trace))
+                        TM_STAGED_DIR=str(self.staged), TM_LEGACY_DIR=str(self.legacy),
+                        TM_LEGACY_MODULE=str(self.old_module), TRACE=str(self.trace))
 
     def make_bundle(self, path, code, engine="1.102.3", fail=False):
         path.mkdir(parents=True, exist_ok=True)
@@ -40,7 +40,7 @@ class InstallLifecycleTests(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, target)
         (path / "module.prop").write_text(
-            f"id=kernelsu-tailscaled\nversion=2.0.0-beta.{code - 20000000}\nversionCode={code}\n")
+            f"id=TailMate\nversion=2.0.0-beta.{code - 20000000}\nversionCode={code}\n")
         (path / "engine-version").write_text(engine + "\n")
         (path / "tailscale/scripts/tailscale-service").write_text(
             '#!/bin/sh\n'
@@ -203,7 +203,7 @@ class InstallLifecycleTests(unittest.TestCase):
         self.make_bundle(self.staged, 20000002)
         implementation = self.staged / "scripts/runtime-control.sh"
         implementation.write_text(implementation.read_text().replace(
-            'kst_dispatch() {', 'kst_dispatch() {\n  printf "selected-controller\\n" >> "$TRACE"'))
+            'tm_dispatch() {', 'tm_dispatch() {\n  printf "selected-controller\\n" >> "$TRACE"'))
         self.manifest(self.staged)
         self.run_control("apply-staged")
         self.run_control("status-json")
@@ -355,7 +355,7 @@ class InstallLifecycleTests(unittest.TestCase):
         builder.write_engine_provenance(source)
         result = builder.build(source, self.base / "packages")
         self.assertEqual(0, result.returncode, result.stderr)
-        archive = next((self.base / "packages").glob("KernelSU-Tailscaled-v*.zip"))
+        archive = next((self.base / "packages").glob("TailMate-v*.zip"))
         self.assertTrue(zipfile.is_zipfile(archive))
         self.staged.mkdir(parents=True)
         harness = self.base / "install.sh"
@@ -369,8 +369,8 @@ rm -f "$MODPATH/customize.sh"
 ''')
         env = dict(self.env, BOOTMODE="true", ARCH="arm64", ZIPFILE=str(archive),
                    MODPATH=str(self.staged), INSTALLER=str(ROOT / "customize.sh"),
-                   KST_ACTIVE_DIR=str(self.module), KST_SHELL="/bin/sh",
-                   KST_START_TIMEOUT="2", KST_STOP_TIMEOUT="1", KST_CLI_TIMEOUT="1")
+                   TM_ACTIVE_DIR=str(self.module), TM_SHELL="/bin/sh",
+                   TM_START_TIMEOUT="2", TM_STOP_TIMEOUT="1", TM_CLI_TIMEOUT="1")
         if os.geteuid() != 0:
             commands = self.base / "manager-commands"
             commands.mkdir()

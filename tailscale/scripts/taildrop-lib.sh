@@ -204,7 +204,7 @@ taildrop_sender_ready() {
 
 taildrop_targets() {
   taildrop_sender_ready || return 1
-  bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp --targets
+  bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp --targets
 }
 
 taildrop_send() {
@@ -224,7 +224,7 @@ taildrop_send() {
   }
   # FileTargets is the official eligibility list, including offline peers. The
   # CLI checks eligibility again at transfer time and reports any later change.
-  targets=$(bounded "$KST_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp --targets </dev/null) || return $?
+  targets=$(bounded "$TM_CLI_TIMEOUT" "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp --targets </dev/null) || return $?
   # awk owns $1. The requested IP has already been restricted to digits/dots.
   # shellcheck disable=SC2016
   printf '%s\n' "$targets" | awk_command -v target="$target" '
@@ -236,6 +236,6 @@ taildrop_send() {
   # transfer PID directly. No lock, spool file, logger or background job lives
   # for the duration of the network transfer; the CLI exit status is unchanged.
   exec 9>&- 8>&-
-  unset KST_LOCK_HELD
+  unset TM_LOCK_HELD
   exec "$TAILSCALE_BIN" --socket="$SOCKET_FILE" file cp "--name=$filename" - "$target:"
 }

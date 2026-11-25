@@ -11,18 +11,18 @@ class LeaveAppCgroupTests(unittest.TestCase):
     """Android kills an app's uid_N/pid_M group on task removal; the runtime must leave it."""
 
     def run_helper(self, cgroup, mounts):
-        with tempfile.TemporaryDirectory(prefix='kst-cgroup-') as directory:
+        with tempfile.TemporaryDirectory(prefix='tm-cgroup-') as directory:
             root = Path(directory)
             for mount in ('v2', 'memcg', 'cpuset'):
                 (root / mount).mkdir()
                 (root / mount / 'cgroup.procs').write_text('')
             (root / 'self').write_text(cgroup)
             (root / 'mounts').write_text(mounts.replace('ROOT', directory))
-            script = ('. "$1/scripts/bundle-lib.sh"; kst_leave_app_cgroup; echo "$$"')
+            script = ('. "$1/scripts/bundle-lib.sh"; tm_leave_app_cgroup; echo "$$"')
             result = subprocess.run(
                 ['sh', '-c', script, 'sh', str(ROOT)], capture_output=True, text=True, timeout=10,
-                env={'PATH': '/usr/bin:/bin', 'KST_BUSYBOX': '/nonexistent',
-                     'KST_CGROUP_SELF': str(root / 'self'), 'KST_CGROUP_MOUNTS': str(root / 'mounts')})
+                env={'PATH': '/usr/bin:/bin', 'TM_BUSYBOX': '/nonexistent',
+                     'TM_CGROUP_SELF': str(root / 'self'), 'TM_CGROUP_MOUNTS': str(root / 'mounts')})
             self.assertEqual(0, result.returncode, result.stderr)
             pid = result.stdout.strip()
             return pid, {m: (root / m / 'cgroup.procs').read_text() for m in ('v2', 'memcg', 'cpuset')}
