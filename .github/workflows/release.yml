@@ -3,7 +3,7 @@ name: Build, Verify, and Release
 on:
   push:
     branches: [master, "feature/**"]
-    tags: ["v3.*"]
+    tags: ["v[0-9]+.*"]
   pull_request:
     branches: [master]
   workflow_dispatch:
@@ -43,13 +43,8 @@ jobs:
       - name: Verify engine regression tests
         run: python scripts/build_engine.py --test-only
 
-      - name: Verify reproducible compatibility engines
-        run: |
-          python scripts/build_engine.py --output "$RUNNER_TEMP/engine-rebuild"
-          for binary in tailscale-arm tailscaled-arm tailscale-arm64 tailscaled-arm64; do
-            cmp "files/$binary" "$RUNNER_TEMP/engine-rebuild/$binary"
-          done
-          cmp files/engine-build.json "$RUNNER_TEMP/engine-rebuild/engine-build.json"
+      - name: Build compatibility engines from source (must match engine/engine-build.json)
+        run: python scripts/build_engine.py
 
       - name: Install frontend dependencies
         working-directory: webroot-src
@@ -87,27 +82,27 @@ jobs:
           find tailscale/scripts -type f ! -name '*.awk' -print0 | \
             xargs -0 shellcheck --exclude=SC1090,SC1091,SC2034
 
-      - name: Verify binary manifest
-        run: sha256sum --check files/manifest.sha256
+      - name: Verify pinned hev-socks5-tunnel upstream assets
+        run: sha256sum --check engine/hev-socks5-tunnel.sha256
 
       - name: Build packages
-        run: sh scripts/build-release.sh --use-existing-binaries --output dist
+        run: sh scripts/build-release.sh --output dist
 
       - name: Verify packages
         run: |
           version=$(sed -n 's/^version=//p' module.prop)
           python scripts/verify-package.py \
-            --zip "dist/KernelSU-Tailscaled-v${version}.zip" --arch all
+            --zip "dist/TailMate-v${version}.zip" --arch all
           python scripts/verify-package.py \
-            --zip "dist/KernelSU-Tailscaled-arm-v${version}.zip" --arch arm
+            --zip "dist/TailMate-arm-v${version}.zip" --arch arm
           python scripts/verify-package.py \
-            --zip "dist/KernelSU-Tailscaled-arm64-v${version}.zip" --arch arm64
+            --zip "dist/TailMate-arm64-v${version}.zip" --arch arm64
 
       - name: Verify reproducible package bytes
         run: |
           sha256sum dist/*.zip | sed 's#dist/##' > /tmp/first-build.sha256
           rm -rf dist
-          sh scripts/build-release.sh --use-existing-binaries --output dist
+          sh scripts/build-release.sh --output dist
           sha256sum dist/*.zip | sed 's#dist/##' > /tmp/second-build.sha256
           diff -u /tmp/first-build.sha256 /tmp/second-build.sha256
 
@@ -120,7 +115,7 @@ jobs:
       - name: Install Android SDK packages
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platforms;android-36" "build-tools;36.0.0"
+            "platforms;android-36" "build-tools;36.0.0" "build-tools;34.0.0"
 
       - name: Build debug companion
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -131,6 +126,7 @@ jobs:
           cp android/build/companion-unsigned.apk "$RUNNER_TEMP/companion-first-unsigned.apk"
           python android/build.py --debug
           cmp "$RUNNER_TEMP/companion-first-unsigned.apk" android/build/companion-unsigned.apk
+          python android/build.py --unsigned --output "$RUNNER_TEMP/fdroid"
 
       - name: Build signed release companion
         if: startsWith(github.ref, 'refs/tags/')
@@ -164,6 +160,11 @@ jobs:
           cp android/build/companion-unsigned.apk "$RUNNER_TEMP/companion-first-unsigned.apk"
           python android/build.py
           cmp "$RUNNER_TEMP/companion-first-unsigned.apk" android/build/companion-unsigned.apk
+          # f-droid.org publishes this signed APK only if its signature copies onto
+          # an independent unsigned rebuild; check with the same tool F-Droid uses.
+          python -m pip install --quiet apksigcopier==1.1.1
+          PATH="$ANDROID_HOME/build-tools/34.0.0:$PATH" apksigcopier compare \
+            "dist/TailMate-companion-$GITHUB_REF_NAME.apk" --unsigned android/build/companion-unsigned.apk
 
       - name: Remove release signing material
         if: always()
@@ -172,7 +173,7 @@ jobs:
       - name: Upload verified packages
         uses: actions/upload-artifact@v7
         with:
-          name: KernelSU-Tailscaled-packages
+          name: TailMate-packages
           path: |
             dist/*.zip
             dist/*.apk
@@ -181,7 +182,7 @@ jobs:
 
   release:
     if: >-
-      startsWith(github.ref, 'refs/tags/v3.') &&
+      startsWith(github.ref, 'refs/tags/v') &&
       (contains(github.ref_name, '-') || vars.STABLE_RELEASE_APPROVED == 'true')
     needs: build
     uses: ./.github/workflows/publish-source.yml

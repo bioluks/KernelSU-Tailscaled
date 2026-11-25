@@ -15,3 +15,9 @@ android/build/
 *.jks
 *.p12
 *.pfx
+# Engine build outputs (scripts/build_engine.py); pinned by engine/engine-build.json
+/files/tailscale-*
+/files/tailscaled-*
+/files/VERSION.txt
+/files/engine-build.json
+/files/manifest.sha256

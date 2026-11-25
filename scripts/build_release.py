@@ -17,7 +17,7 @@ ROOT_FILES = (
     "skip_mount",
     "LICENSE",
     "NOTICE",
-    "update-kernelsu.json",
+    "update.json",
     "scripts/bundle-lib.sh",
     "scripts/runtime-control.sh",
     "scripts/install-runtime.sh",
@@ -36,10 +36,9 @@ ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build deterministic KernelSU-Tailscaled ZIP files")
+    parser = argparse.ArgumentParser(description="Build deterministic TailMate ZIP files")
     parser.add_argument("--source", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--output", type=Path, default=Path("dist"))
-    parser.add_argument("--use-existing-binaries", action="store_true")
     return parser.parse_args()
 
 
@@ -91,7 +90,10 @@ def common_entries(source: Path) -> dict[str, bytes]:
     if (source / "tailscale/config/engine-compat").is_file():
         provenance = source / "files/engine-build.json"
         if provenance.is_symlink() or not provenance.is_file():
-            raise ValueError("Compatibility engine build provenance is required")
+            raise ValueError("Compatibility engine build provenance is required; run scripts/build_engine.py")
+        lock = source / "engine/engine-build.json"
+        if lock.is_file() and lock.read_bytes() != provenance.read_bytes():
+            raise ValueError("files/engine-build.json does not match engine/engine-build.json; rebuild the engine")
         entries["engine-build.json"] = provenance.read_bytes()
     return entries
 
@@ -142,9 +144,9 @@ def build(source: Path, output: Path) -> list[Path]:
     version = module_version(source)
     common = common_entries(source)
     variants = (
-        ("all", ARCHITECTURES, f"KernelSU-Tailscaled-v{version}.zip"),
-        ("arm", ("arm",), f"KernelSU-Tailscaled-arm-v{version}.zip"),
-        ("arm64", ("arm64",), f"KernelSU-Tailscaled-arm64-v{version}.zip"),
+        ("all", ARCHITECTURES, f"TailMate-v{version}.zip"),
+        ("arm", ("arm",), f"TailMate-arm-v{version}.zip"),
+        ("arm64", ("arm64",), f"TailMate-arm64-v{version}.zip"),
     )
     results = []
     for _, architectures, filename in variants:

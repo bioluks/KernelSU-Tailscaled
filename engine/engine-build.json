@@ -1,21 +1,21 @@
 {
   "binaries": {
-    "tailscale-arm": "44438a47a084e22214bdff82834f85622a445e8da1a513f94c1ed0a70dde9160",
-    "tailscale-arm64": "21dcd181508df68621b0ee5e763462e965fbd34af5b400a2f87be08f5ca1fbdb",
-    "tailscaled-arm": "3c6576d8d82dfedff588891f781efeba81794c1ec7836b0f435fcba4765534d8",
-    "tailscaled-arm64": "56af49bceb7eed9e4046d776fff970a1ffeaff57cd5a723c0553e67f0169204b"
+    "tailscale-arm": "7c23d92e4bd3b30e4d40cf699768accf5dd5dff2dfbf5ed2dd3f20ec95a564de",
+    "tailscale-arm64": "63e8847ef773788b23dda765273ca80e35f4921dbf9bebd98c2886039ebb8466",
+    "tailscaled-arm": "6ea4f49d88e032ed4e722916c5d12752253f57dba98f2ef99c52bf136e2e3e8c",
+    "tailscaled-arm64": "d62334f7c60826894b50a7eec05555963426f6faf8ee414fb5d2bd798277bced"
   },
   "build": {
     "CGO_ENABLED": "0",
     "GOARM": "7",
     "GOOS": "linux",
     "buildvcs": false,
-    "ldflags": "-s -w -buildid= -X tailscale.com/version.shortStamp=1.104.7 -X tailscale.com/version.longStamp=1.104.7-kst-android-compat-1-66ea973eaab0 -X tailscale.com/version.gitCommitStamp=cbc74fe48ef1b1649f69a4d9a602319427e25102",
+    "ldflags": "-s -w -buildid= -X tailscale.com/version.shortStamp=1.104.7 -X tailscale.com/version.longStamp=1.104.7-tm-android-compat-1-66ea973eaab0 -X tailscale.com/version.gitCommitStamp=cbc74fe48ef1b1649f69a4d9a602319427e25102",
     "tags": "ts_omit_clientupdate",
     "trimpath": true
   },
   "compatibility": "android-compat-1",
-  "longVersion": "1.104.7-kst-android-compat-1-66ea973eaab0",
+  "longVersion": "1.104.7-tm-android-compat-1-66ea973eaab0",
   "patchSetSha256": "66ea973eaab00918e206fb131462fae83e95f6225043b5fca60f05a2c12ce4d4",
   "patches": {
     "0001-old-kernel-netlink.patch": "705e7602e9d18aa1fdfdc255b87806c8ac6fb8df22032b4ec7bf7eeb83303d19",

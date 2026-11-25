@@ -16,9 +16,9 @@ VERIFIER = ROOT / "scripts" / "verify-package.py"
 class ReleaseBuilderTests(unittest.TestCase):
     def make_source(self, root: Path) -> None:
         files = {
-            "module.prop": b"id=kernelsu-tailscaled\nname=KernelSU-Tailscaled\nversion=1.2.3.4\nversionCode=01020304\nauthor=test\ndescription=test\n",
-            "module.json": b'{"metamodule":false,"sourceUrl":"https://github.com/WayneShao/KernelSU-Tailscaled"}\n',
-            "update-kernelsu.json": b"{}\n",
+            "module.prop": b"id=TailMate\nname=TailMate\nversion=1.2.3.4\nversionCode=01020304\nauthor=test\ndescription=test\n",
+            "module.json": b'{"metamodule":false,"sourceUrl":"https://github.com/bioluks/TailMate"}\n',
+            "update.json": b"{}\n",
             "control.sh": b"#!/system/bin/sh\nexit 0\n",
             "scripts/bundle-lib.sh": b"#!/system/bin/sh\nexit 0\n",
             "scripts/runtime-control.sh": b"#!/system/bin/sh\nexit 0\n",
@@ -73,7 +73,6 @@ class ReleaseBuilderTests(unittest.TestCase):
                 str(source),
                 "--output",
                 str(output),
-                "--use-existing-binaries",
             ],
             cwd=ROOT,
             capture_output=True,
@@ -95,9 +94,9 @@ class ReleaseBuilderTests(unittest.TestCase):
             self.assertEqual(0, first_result.returncode, first_result.stderr)
             self.assertEqual(0, second_result.returncode, second_result.stderr)
             expected = {
-                "KernelSU-Tailscaled-v1.2.3.4.zip": "all",
-                "KernelSU-Tailscaled-arm-v1.2.3.4.zip": "arm",
-                "KernelSU-Tailscaled-arm64-v1.2.3.4.zip": "arm64",
+                "TailMate-v1.2.3.4.zip": "all",
+                "TailMate-arm-v1.2.3.4.zip": "arm",
+                "TailMate-arm64-v1.2.3.4.zip": "arm64",
             }
             self.assertEqual(expected.keys(), {path.name for path in first.glob("*.zip")})
             for name, arch in expected.items():

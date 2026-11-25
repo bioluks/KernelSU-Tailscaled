@@ -2,9 +2,17 @@
 
 The bundled engine is built from Tailscale v1.104.7 plus the reviewed patches in
 `patches/`. It is not an unmodified official Tailscale binary. Its long version
-contains `kst-android-compat-1` and the patch-set hash. `files/engine-build.json`
-records the upstream commit/archive hash, exact Go toolchain, patch hashes,
-compiler flags and output hashes; the installed bundle includes the same record.
+contains `tm-android-compat-1` (`kst-android-compat-1` before TailMate 4.0.0) and
+the patch-set hash. `engine-build.json` (this directory) is the committed lock:
+upstream commit/archive hash, exact Go toolchain, patch hashes, compiler flags
+and the expected output hashes. The binaries themselves are **not committed**;
+every build regenerates them from source into `files/` and must reproduce the
+lock byte for byte. The installed bundle includes the same record.
+
+`hev-socks5-tunnel-linux-{arm,arm64}` in `files/` are unmodified upstream
+release assets of hev-socks5-tunnel 2.6.8 (`linux-arm32` and `linux-arm64`), used
+only in userspace mode. `hev-socks5-tunnel.sha256` pins them to the hashes of
+https://github.com/heiher/hev-socks5-tunnel/releases/tag/2.6.8.
 
 ## Changes
 
@@ -30,7 +38,8 @@ and builds static Linux ARMv7/ARM64 CLI and daemon binaries with trimmed paths
 and deterministic stamps:
 
 ```sh
-python3 scripts/build_engine.py
+python3 scripts/build_engine.py               # fails unless the output matches the lock
+python3 scripts/build_engine.py --update-lock # only for an intended engine change
 ```
 
 Run engine tests on Linux:
@@ -42,7 +51,8 @@ python3 scripts/build_engine.py --test-only
 The pinned source archive and temporary source trees are kept only under ignored
 `.local/`; no downloaded source tree or credentials belong in version control.
 Go dependencies are verified against upstream's unchanged `go.sum` with
-`-mod=readonly`. CI rebuilds all four engines and compares bytes and provenance.
+`-mod=readonly`. CI builds all four engines from source and checks them
+against the lock before packaging.
 
 Both binaries use upstream's `ts_omit_clientupdate` build tag. This removes
 the CLI self-update command and daemon self-update installation endpoint,

@@ -22,6 +22,7 @@ TOOLCHAIN = "go1.27.4"
 COMPATIBILITY = "android-compat-1"
 BUILD_TAGS = "ts_omit_clientupdate"
 TEST_PACKAGES = ("./net/netmon", "./net/dnscache", "./feature/androiddns", "./net/dns", "./cmd/tailscale")
+LOCK = ROOT / "engine" / "engine-build.json"
 
 
 def sha256(path: Path) -> str:
@@ -65,7 +66,7 @@ def prepare_source(archive: Path, work: Path, patches: list[Path]) -> Path:
     return source
 
 
-def build(output: Path, cache: Path, test_only: bool) -> None:
+def build(output: Path, cache: Path, test_only: bool, update_lock: bool = False) -> None:
     patches = sorted((ROOT / "engine" / "patches").glob("*.patch"))
     if not patches:
         raise ValueError("Engine compatibility patches are required")
@@ -88,7 +89,7 @@ def build(output: Path, cache: Path, test_only: bool) -> None:
                            cwd=source, env=environment, check=True)
             return
         output.mkdir(parents=True, exist_ok=True)
-        long_version = f"{VERSION}-kst-{COMPATIBILITY}-{patch_set[:12]}"
+        long_version = f"{VERSION}-tm-{COMPATIBILITY}-{patch_set[:12]}"
         flags = (f"-s -w -buildid= -X tailscale.com/version.shortStamp={VERSION} "
                  f"-X tailscale.com/version.longStamp={long_version} "
                  f"-X tailscale.com/version.gitCommitStamp={REVISION}")
@@ -116,14 +117,16 @@ def build(output: Path, cache: Path, test_only: bool) -> None:
             shutil.copyfile(binary, output / binary.name)
             (output / binary.name).chmod(0o755)
         (output / "VERSION.txt").write_text(f"v{VERSION}\n", encoding="ascii")
-        (output / "engine-build.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n")
-        payloads = sorted(p for p in output.iterdir()
-                          if p.is_file() and (p.name in provenance["binaries"] or
-                                             p.name.startswith("hev-socks5-tunnel-linux-") or
-                                             p.name in ("VERSION.txt", "engine-build.json")))
-        (output / "manifest.sha256").write_text("".join(
-            f"{sha256(p)}  files/{p.name}\n" for p in payloads), encoding="ascii")
-        print(json.dumps(provenance, indent=2, sort_keys=True))
+        record = json.dumps(provenance, indent=2, sort_keys=True) + "\n"
+        (output / "engine-build.json").write_text(record)
+        print(record, end="")
+        if update_lock:
+            LOCK.write_text(record)
+        elif not LOCK.is_file() or LOCK.read_text() != record:
+            # The lock pins the reviewed binary hashes; a different result means the
+            # build is not reproducible here or the inputs changed without review.
+            raise ValueError(f"Built engine does not match {LOCK.relative_to(ROOT)}; "
+                             "rerun with --update-lock only for an intended engine change")
 
 
 def main() -> None:
@@ -131,8 +134,10 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=ROOT / "files")
     parser.add_argument("--cache", type=Path, default=ROOT / ".local" / "engine-build")
     parser.add_argument("--test-only", action="store_true")
+    parser.add_argument("--update-lock", action="store_true",
+                        help="Record this build as the expected engine (engine/engine-build.json)")
     args = parser.parse_args()
-    build(args.output.resolve(), args.cache.resolve(), args.test_only)
+    build(args.output.resolve(), args.cache.resolve(), args.test_only, args.update_lock)
 
 
 if __name__ == "__main__":
