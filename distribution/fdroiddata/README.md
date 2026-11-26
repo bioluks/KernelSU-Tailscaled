@@ -1,16 +1,17 @@
 # f-droid.org submission
 
-`com.askingmeric.tailmate.yml` is the draft recipe for
-[fdroiddata](https://gitlab.com/fdroid/fdroiddata) (`metadata/`). Store texts
-and the icon come from `fastlane/metadata/android/` in this repository.
+`com.askingmeric.tailmate.yml` is the recipe for
+[fdroiddata](https://gitlab.com/fdroid/fdroiddata) (`metadata/`);
+`MERGE_REQUEST.md` is the merge request text. Store texts and the icon come from
+`fastlane/metadata/android/` in this repository.
 
 ## Same signature everywhere
 
 The recipe sets `Binaries` and `AllowedAPKSigningKeys`. F-Droid builds the
 unsigned APK from source, copies the signature from the GitHub release APK onto
 it, and publishes **the developer-signed APK** only if that verifies. GitHub,
-Obtainium and f-droid.org therefore ship the same certificate
-(`0924bb04…626ae3`) and users can switch between them without reinstalling.
+Obtainium, the bioluks/execd F-Droid channels and f-droid.org therefore ship the
+same certificate (`0924bb04…626ae3`) and users can switch without reinstalling.
 
 This only works while the build is byte-for-byte reproducible:
 
@@ -27,29 +28,30 @@ This only works while the build is byte-for-byte reproducible:
   so a toolchain change that breaks this fails the release instead of the
   F-Droid build.
 
-Verified locally (2026-11-25):
+Verified (2026-11-25), all with the official
+`registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie` image:
 
-- In a Debian trixie container that mirrors the build server, a signed build
-  from one checkout and an independent `--unsigned` build from a different path
-  pass `apksigcopier compare`.
-- With the official `registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie`
-  image and fdroidserver 2.4.2, `fdroid build` of this recipe (with `Repo`
-  pointed at a local checkout) succeeds, deletes `files/`, and produces
-  `unsigned/com.askingmeric.tailmate_40000000.apk` (SHA-256 `f34fff90…a3b849`),
-  byte-identical to the Temurin 25 build. The build server image ships only
-  JDK 21, hence the `sudo` install of `openjdk-25-jdk-headless`.
+- A signed build from one checkout and an independent `--unsigned` build from a
+  different path pass `apksigcopier compare`.
+- `fdroid lint` and `fdroid rewritemeta` are clean in a current fdroiddata checkout.
+- `fdroid build` of this recipe against the published release built the APK,
+  deleted `files/`, compared it with the `Binaries` APK ("compared built binary
+  to supplied reference binary successfully") and accepted the allowed signer.
+  The build server image ships only JDK 21, hence the `sudo` install of
+  `openjdk-25-jdk-headless`.
 
 ## Submitting
 
-1. Publish the 4.0.0 release (tag `v4.0.0_tailscale1.104.7`) first; the recipe
-   pins that tag and downloads the APK from it.
-2. Fork fdroiddata, copy the recipe to `metadata/com.askingmeric.tailmate.yml`,
-   run `fdroid lint com.askingmeric.tailmate` and
-   `fdroid build -v -l com.askingmeric.tailmate`, then open a merge request.
-3. Mention in the MR that the app needs root and the separately installed
-   TailMate module (`RequiresRoot: true` and the description say so), and that
-   `files/` is deleted before the build because it holds prebuilt module
-   binaries that the APK does not use.
+1. Sign in at https://gitlab.com and fork https://gitlab.com/fdroid/fdroiddata
+   (keep the fork public).
+2. In the fork, create a branch (e.g. `tailmate`), add
+   `metadata/com.askingmeric.tailmate.yml` with exactly this directory's recipe,
+   commit, and push.
+3. Open a merge request into `fdroid/fdroiddata:master` titled
+   `New app: TailMate`, with the text from `MERGE_REQUEST.md`. Attach 2–4
+   screenshots (main screen, share sheet, settings).
+4. Wait for the pipeline. If GitLab asks for a phone number or card to run CI,
+   don't provide one; leave a note in the MR instead (F-Droid triggers it).
 
 Later releases need no recipe edits: `AutoUpdateMode`/`UpdateCheckMode` pick up
 new `v*_tailscale*` tags and read `versionCode`/`version` from `module.prop`.

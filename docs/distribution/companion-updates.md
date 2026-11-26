@@ -19,15 +19,22 @@ with the imports below.
 
 If a link does not open your F-Droid client, copy its URL into **Settings →
 Repositories → Add repository**. Keep the `fingerprint` parameter. Choose either
-channel; adding both is unnecessary. Both contain original stable-release APKs,
-not independent F-Droid builds. Neither is the official F-Droid repository nor an
+channel; adding both is unnecessary. Both contain original stable-release APKs
+from 4.0.0 on (the pre-4.0.0 package is no longer listed) and show each version
+with its release date. Neither is the official F-Droid repository nor an
 endorsement by its maintainers. Drafts and prereleases are excluded.
+
+The official f-droid.org listing (once accepted) publishes the **same
+developer-signed APK**: f-droid.org rebuilds it from source, verifies it matches
+the release APK, and ships the release APK. Switching between f-droid.org, these
+channels, Obtainium and GitHub therefore needs no reinstall. Recipe and
+verification notes: [distribution/fdroiddata](../../distribution/fdroiddata/README.md).
 
 | Identity | SHA-256 |
 | --- | --- |
 | GitHub repository certificate | `5D8E267599C867F92FF842FF9C5AA056482A9EEE65B87257686248D57A8AF84A` |
 | Forgejo repository certificate | `67B4275D8E7753CDE9EF0B39AD6A4A78641EA9ED7E7FC402FC2FEAB274460F5B` |
-| Android APK signing certificate, both hosts | `0924BB045985C248E9DDF9E9139E090AEAC72446AE94CF41D8896AF5DC626AE3` |
+| Android APK signing certificate, all channels | `0924BB045985C248E9DDF9E9139E090AEAC72446AE94CF41D8896AF5DC626AE3` |
 
 The two repository certificates differ intentionally. The APK certificate is the
 same, so Android can update an existing release installation when changing
@@ -62,10 +69,10 @@ Source and releases are independently writable:
 - Forgejo: https://git.dreamscape.one/execd/TailMate
 
 Forgejo repositories have `mirror=false`, `fork=false`, and no migration URL.
-Initial v3.0.0/v3.1.0 assets were seeded from the already approved releases, with
-matching hashes. Future Forgejo releases are an explicit publication decision,
-not automatic GitHub mirroring. Existing module ZIPs retain their embedded GitHub
-update URL; moving the source repository does not rewrite signed/published ZIPs.
+Forgejo releases are an explicit publication decision, not automatic GitHub
+mirroring; 4.0.0 carries byte-identical assets. Existing module ZIPs retain their
+embedded GitHub update URL; moving the source repository does not rewrite
+signed/published ZIPs.
 
 The [GitHub F-Droid publisher](https://github.com/bioluks/fdroid/actions/workflows/publish.yml)
 runs daily at 04:17 UTC and can be dispatched manually. It reads GitHub releases.
@@ -88,12 +95,14 @@ previous signed index, pin historical release hashes, validate APK signatures an
 package/version, and reject replacement/disappearing stable releases. A failed
 run leaves the existing public repository intact. Keep the successful previous
 signed deployment if a new refresh fails; Android will not downgrade an installed
-app merely because an older version is indexed.
+app merely because an older version is indexed. The 4.0.0 switch from the old
+package was a one-time transition under the same repository keys; a later
+package change would need the same explicit updater change.
 
 For a separately accepted local Forgejo release:
 
 ```sh
-git push forgejo "refs/tags/$TAG:refs/tags/$TAG"
+git push forgejo master "refs/tags/$TAG:refs/tags/$TAG"   # HTTPS token with repo write scope
 fj -H git.dreamscape.one release create --repo execd/TailMate \
   --tag "$TAG" --body "$(cat "$NOTES")" \
   --attach "$ARTIFACTS/TailMate-companion-$TAG.apk" \
