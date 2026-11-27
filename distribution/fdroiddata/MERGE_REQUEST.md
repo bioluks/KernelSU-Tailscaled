@@ -18,7 +18,7 @@ Android share sheet (progress, speed, cancel, optional confirmation), notifies o
 received files, and keeps an optional, clearable transfer history. English and
 Simplified Chinese.
 
-Screenshots: <!-- attach 2–4 phone screenshots (main screen, share sheet, settings) -->
+Screenshots: <!-- drag in 1-main.png, 2-share.png and 3-settings.png from fastlane/metadata/android/en-US/images/phoneScreenshots/ -->
 
 ### Please elaborate why you wrote this app. Please highlight the unique functions it provides over other similar apps in F-Droid.
 
@@ -74,3 +74,31 @@ Taildrop, Headscale sign-in, an English UI and much lower idle CPU use.
 
 * [ ] All pipelines should pass.
 * [ ] All warnings and errors in the Reports tab should be fixed or explained.
+
+## Notes for reviewers
+
+**Development history and users (Quality point 6).** TailMate continues an
+existing module line: anasfanani/magisk-tailscaled (December 2023) →
+ryukora/Magisk-Tailscaled → WayneShao/KernelSU-Tailscaled → this project, which
+was renamed from KernelSU-Tailscaled to TailMate in 4.0.0 and keeps that history
+in its repository. The companion app has shipped since v3.0.0 (2026-11-10):
+GitHub release assets have been downloaded 114 times for the APK and 140 times
+for the module ZIPs so far, and existing users are served by two
+self-hosted F-Droid repositories and Obtainium. 4.0.1 is a routine follow-up,
+not a first release.
+
+**No tracking anti-feature.** Unlike the official Tailscale client
+(`com.tailscale.ipn`, tagged Tracking for log uploads), the module starts
+tailscaled with `--no-logs-no-support`, so no logs are sent to Tailscale. The
+app has no analytics or ads; its only network access is the module's local web
+panel on 127.0.0.1.
+
+**No downloads of executables.** The app downloads nothing. The module's
+standalone Tailscale engine updater is disabled for builds with the bundled
+Android compatibility patches (all current releases): the settings screen only
+shows the latest official version for reference and says to update the full
+module instead.
+
+**Trademark.** "Tailscale" appears only in descriptive text, never in the app
+name or ID, and the description states that TailMate is not an official
+Tailscale product.
