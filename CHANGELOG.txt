@@ -1,3 +1,12 @@
+v4.0.1 (bioluks) - TailMate release signing key
+
+- Sign the companion with the new TailMate release key (CN=TailMate,
+  O=Meriç Aşkın; RSA 4096; SHA-256 3e3238fa4a9ecbcfb5c4bb6b3e7166ad5af3b6e667b02b2015e3cc966d9cd089).
+  4.0.0 companion installs must be uninstalled once; later updates work from
+  GitHub, Obtainium and F-Droid without reinstalling.
+- The F-Droid channels and the f-droid.org recipe start at 4.0.1.
+- No module or runtime changes. Version code 40000100.
+
 v4.0.0 (bioluks) - Renamed to TailMate
 
 - Rename the project from KernelSU-Tailscaled to TailMate. The module id is now

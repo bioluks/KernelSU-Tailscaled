@@ -121,8 +121,8 @@ IPv4 address and verifies that the installed hooks and WebUI match the update.
 **Apply staged runtime** switches only the runtime; routine ZIP installation
 does not need that extra step.
 
-Module versions embed the bundled engine: `4.0.0_tailscale1.104.7` bundles
-Tailscale 1.104.7 with `versionCode=40000000`.
+Module versions embed the bundled engine: `4.0.1_tailscale1.104.7` bundles
+Tailscale 1.104.7 with `versionCode=40000100`.
 
 ## Coming From KernelSU-Tailscaled
 

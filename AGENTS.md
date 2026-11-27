@@ -31,13 +31,18 @@ Fork of WayneShao/ryukora work; repo `bioluks/TailMate`; default branch is
 ## Hard invariants
 
 ### Versioning
-- `versionCode` is a **single monotonic integer** (current `40000000`). Managers
+- `versionCode` is a **single monotonic integer** (current `40000100`). Managers
   order updates by it; `tm_activate` rejects an equal-or-lower code with
   different bundle bytes. Every build iteration on a device consumes a code.
 - `version=` embeds the engine: `X.Y.Z_tailscaleA.B.C`. `+` is rejected by
   `android/build.py`'s filename-safe regex; `-` makes the publish workflow treat
   the tag as a prerelease. The suffix must match `VERSION` in
   `scripts/build_engine.py` (`tests/test_metadata.py` enforces it).
+- The companion release key is `CN=TailMate, O=Meriç Aşkın` (SHA-256
+  `3e3238fa…9cd089`, from 4.0.1; 4.0.0 used the old `0924bb04…` key). It is
+  pinned in the f-droid.org recipe and both F-Droid publishers; changing it
+  forces every user to reinstall. Private copy:
+  `~/.local/share/tailmate/release-signing/`; CI reads the `ANDROID_*` secrets.
 - The public feed on `master` must never point at a ZIP URL that does not exist
   yet. Advance it only after the release is published (see Release flow).
 

@@ -1,0 +1,2 @@
+Signed with the new TailMate release key. If you installed 4.0.0, uninstall it once and install 4.0.1; later updates work normally from GitHub, Obtainium or F-Droid.
+Coming from KernelSU-Tailscaled: install the TailMate module 4.0.1; it takes over node identity and settings without signing in again.

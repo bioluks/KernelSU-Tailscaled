@@ -60,7 +60,7 @@ Taildrop, Headscale sign-in, an English UI and much lower idle CPU use.
 * [x] No srclibs or submodules: plain Java, built by `android/build.py` with the SDK and a JDK only (no Gradle, no dependencies).
 * [x] **Reproducible build with developer signature** (`Binaries`, `AllowedAPKSigningKeys`).
   Verified with `fdroid build` in the buildserver-trixie image: the source build
-  matches the published 4.0.0 APK and the signer is allowed. Release builds pin
+  matches the published 4.0.1 APK and the signer is allowed. Release builds pin
   Build Tools 36.0.0 + JDK 25 and are signed with apksigner 34 (avoids the
   apksigner ≥ 35 signature-copy issue).
 * [x] No ABI split needed (one ~150 KB APK, no native code).

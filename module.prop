@@ -1,7 +1,7 @@
 id=TailMate
 name=TailMate
-version=4.0.0_tailscale1.104.7
-versionCode=40000000
+version=4.0.1_tailscale1.104.7
+versionCode=40000100
 author=bioluks (Meriç Aşkın); based on WayneShao, ryukora and ANASFANANI
 description=Tailscale for rooted Android (KernelSU, KernelSU-Next, Magisk, APatch): native TUN without occupying the VPN slot, isolated state, WebUI; companion app optional.
 updateJson=https://raw.githubusercontent.com/bioluks/TailMate/master/update.json

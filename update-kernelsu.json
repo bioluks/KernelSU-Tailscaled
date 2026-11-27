@@ -1,6 +1,6 @@
 {
-  "version": "v4.0.0_tailscale1.104.7",
-  "versionCode": 40000000,
-  "zipUrl": "https://github.com/bioluks/TailMate/releases/download/v4.0.0_tailscale1.104.7/TailMate-v4.0.0_tailscale1.104.7.zip",
+  "version": "v4.0.1_tailscale1.104.7",
+  "versionCode": 40000100,
+  "zipUrl": "https://github.com/bioluks/TailMate/releases/download/v4.0.1_tailscale1.104.7/TailMate-v4.0.1_tailscale1.104.7.zip",
   "changelog": "https://raw.githubusercontent.com/bioluks/TailMate/master/CHANGELOG.txt"
 }

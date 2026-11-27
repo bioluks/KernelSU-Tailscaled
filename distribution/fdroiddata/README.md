@@ -11,7 +11,8 @@ The recipe sets `Binaries` and `AllowedAPKSigningKeys`. F-Droid builds the
 unsigned APK from source, copies the signature from the GitHub release APK onto
 it, and publishes **the developer-signed APK** only if that verifies. GitHub,
 Obtainium, the bioluks/execd F-Droid channels and f-droid.org therefore ship the
-same certificate (`0924bb04…626ae3`) and users can switch without reinstalling.
+same certificate (`3e3238fa…9cd089`, `CN=TailMate, O=Meriç Aşkın`, from 4.0.1)
+and users can switch without reinstalling.
 
 This only works while the build is byte-for-byte reproducible:
 
@@ -22,8 +23,8 @@ This only works while the build is byte-for-byte reproducible:
   `apksigner` versions produce signatures that F-Droid's `apksigcopier` cannot
   copy (see the "apksigner from build-tools >= 35" note in
   https://f-droid.org/docs/Reproducible_Builds/). The published 3.6.0 APK was
-  signed with 36.0.0 and fails this check; 4.0.0 is the first release that
-  f-droid.org can publish with the developer signature.
+  signed with 36.0.0 and fails this check. 4.0.1 is the first release on the
+  TailMate key, and the one f-droid.org starts with.
 - On tags, CI runs `apksigcopier compare` against the release APK it just built,
   so a toolchain change that breaks this fails the release instead of the
   F-Droid build.

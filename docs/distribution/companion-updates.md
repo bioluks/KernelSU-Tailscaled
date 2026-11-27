@@ -10,6 +10,11 @@ treats TailMate as a different app: uninstall the old companion and install the
 TailMate one; existing Obtainium entries for the old package must be replaced
 with the imports below.
 
+4.0.1 is signed with the new TailMate release key; 4.0.0 used the old
+KernelSU-Tailscaled key (`0924BB04…626AE3`). Android cannot update 4.0.0 to
+4.0.1 in place: uninstall the 4.0.0 companion once and install 4.0.1. The
+module is unaffected.
+
 ## F-Droid-compatible repositories
 
 | Channel | Add repository | Repository source |
@@ -20,9 +25,10 @@ with the imports below.
 If a link does not open your F-Droid client, copy its URL into **Settings →
 Repositories → Add repository**. Keep the `fingerprint` parameter. Choose either
 channel; adding both is unnecessary. Both contain original stable-release APKs
-from 4.0.0 on (the pre-4.0.0 package is no longer listed) and show each version
-with its release date. Neither is the official F-Droid repository nor an
-endorsement by its maintainers. Drafts and prereleases are excluded.
+from 4.0.1 on, the first release signed with the TailMate key (earlier releases
+are not listed), and show each version with its release date. Neither is the
+official F-Droid repository nor an endorsement by its maintainers. Drafts and
+prereleases are excluded.
 
 The official f-droid.org listing (once accepted) publishes the **same
 developer-signed APK**: f-droid.org rebuilds it from source, verifies it matches
@@ -34,7 +40,7 @@ verification notes: [distribution/fdroiddata](../../distribution/fdroiddata/READ
 | --- | --- |
 | GitHub repository certificate | `5D8E267599C867F92FF842FF9C5AA056482A9EEE65B87257686248D57A8AF84A` |
 | Forgejo repository certificate | `67B4275D8E7753CDE9EF0B39AD6A4A78641EA9ED7E7FC402FC2FEAB274460F5B` |
-| Android APK signing certificate, all channels | `0924BB045985C248E9DDF9E9139E090AEAC72446AE94CF41D8896AF5DC626AE3` |
+| Android APK signing certificate, all channels (from 4.0.1) | `3E3238FA4A9ECBCFB5C4BB6B3E7166AD5AF3B6E667B02B2015E3CC966D9CD089` (`CN=TailMate, O=Meriç Aşkın`) |
 
 The two repository certificates differ intentionally. The APK certificate is the
 same, so Android can update an existing release installation when changing
@@ -70,7 +76,7 @@ Source and releases are independently writable:
 
 Forgejo repositories have `mirror=false`, `fork=false`, and no migration URL.
 Forgejo releases are an explicit publication decision, not automatic GitHub
-mirroring; 4.0.0 carries byte-identical assets. Existing module ZIPs retain their
+mirroring; each release carries byte-identical assets. Existing module ZIPs retain their
 embedded GitHub update URL; moving the source repository does not rewrite
 signed/published ZIPs.
 
