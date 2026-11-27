@@ -298,3 +298,37 @@ the old repo page, an old release asset URL, the old git URL and the old Forgejo
 page all still resolved (HTTP 200 via redirect). Existing installs keep polling
 the bridge feed; it advances to 4.0.0 only when `master` is fast-forwarded after
 the release exists.
+
+## v4.0.1_tailscale1.104.7 — TailMate release signing key
+
+Accepted by the maintainer on 2026-11-27 (branch CI run 46051649865 passed).
+
+Version code `40000100`. The companion is signed with the new release key
+`CN=TailMate, O=Meriç Aşkın` (RSA 4096, SHA-384, valid to 2056-11-19, SHA-256
+`3e3238fa4a9ecbcfb5c4bb6b3e7166ad5af3b6e667b02b2015e3cc966d9cd089`), replacing
+the KernelSU-Tailscaled-era key used by 4.0.0. The 4.0.0 release is immutable,
+so the key change ships as 4.0.1.
+
+| Candidate | SHA-256 |
+| --- | --- |
+| `TailMate-v4.0.1_tailscale1.104.7.zip` | `0da875df3987bc5839788299c1480e3718fd4b66ad83cef182d91ffa0a01e728` |
+| `TailMate-arm-v4.0.1_tailscale1.104.7.zip` | `b2c5b67b2d1f1b7d1ed05e3e3fd47b48c2147fc663b0cb9660fa36491c466e41` |
+| `TailMate-arm64-v4.0.1_tailscale1.104.7.zip` | `20953383bc9897609b360084d72f662dafc0b8a84b8a6ef9a20b4638f063bab4` |
+
+Evidence:
+
+- The module payload is unchanged from the device-verified 4.0.0: a recursive
+  diff of the unpacked universal ZIPs differs only in `module.prop`,
+  `update.json` and the generated `files/*.sha256` manifests. The engine was
+  rebuilt from source and matched `engine/engine-build.json`.
+- All three ZIPs pass `verify-package.py`. Metadata, package and release-builder
+  tests pass.
+- A build signed with the new key and an independent `--unsigned` build from a
+  different path pass `apksigcopier compare` (apksigner 34) in a Debian trixie
+  container mirroring the F-Droid build server.
+- The new key's secrets are set in GitHub Actions; the tag CI signs with them and
+  runs the same `apksigcopier` gate.
+
+Limits: not flashed on a device, because the module bytes are unchanged and the
+phones were not connected. 4.0.0 companion installs must be uninstalled once
+before 4.0.1 installs (signing key change).
