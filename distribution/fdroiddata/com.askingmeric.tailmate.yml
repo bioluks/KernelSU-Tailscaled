@@ -17,9 +17,9 @@ Binaries:
   https://github.com/bioluks/TailMate/releases/download/v%v/TailMate-companion-v%v.apk
 
 Builds:
-  - versionName: 4.0.0_tailscale1.104.7
-    versionCode: 40000000
-    commit: bbef708add91adee4a6ec4f5d8a19a802fcceed8
+  - versionName: 4.0.1_tailscale1.104.7
+    versionCode: 40000100
+    commit: 0cf963ea7e5c5a8834df45b55e55f5621eaedf80
     sudo:
       - apt-get update
       - apt-get install -y openjdk-25-jdk-headless
@@ -33,10 +33,10 @@ Builds:
       - python3 android/build.py --unsigned --output build
 
 AllowedAPKSigningKeys: 
-  0924bb045985c248e9ddf9e9139e090aeac72446ae94cf41d8896af5dc626ae3
+  3e3238fa4a9ecbcfb5c4bb6b3e7166ad5af3b6e667b02b2015e3cc966d9cd089
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+_tailscale[0-9.]+$
 UpdateCheckData: module.prop|versionCode=(\d+)|.|version=(\S+)
-CurrentVersion: 4.0.0_tailscale1.104.7
-CurrentVersionCode: 40000000
+CurrentVersion: 4.0.1_tailscale1.104.7
+CurrentVersionCode: 40000100
