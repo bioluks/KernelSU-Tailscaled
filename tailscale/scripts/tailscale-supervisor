@@ -58,6 +58,12 @@ reconcile() {
   return 11
 }
 
+# Re-check under the lock; the enabled/applied state may have changed meanwhile.
+system_dns_maintain() {
+  system_dns_enabled || return 0
+  system_dns_applied || system_dns_sync
+}
+
 backoff=1
 healthy_for=0
 maintenance_in=0
@@ -72,8 +78,10 @@ while :; do
       sh "$BUNDLE_DIR/scripts/hot-finalize.sh" >/dev/null 2>&1 || true
     fi
     sh "$BUNDLE_DIR/scripts/status-summary.sh" >/dev/null 2>&1 || true
-    if system_dns_enabled && ! system_dns_applied; then
-      system_dns_sync || log WARN 'System-wide DNS is still not applied'
+    # Under the control lock: an unlocked sync could interleave with
+    # enable-system-dns and remove the rules it is installing.
+    if system_dns_enabled; then
+      with_control_lock system_dns_maintain || log WARN 'System-wide DNS is still not applied'
     fi
     maintenance_in=60
   fi
