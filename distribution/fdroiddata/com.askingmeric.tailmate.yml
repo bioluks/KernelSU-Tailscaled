@@ -32,8 +32,7 @@ Builds:
       - export ANDROID_HOME=$$SDK$$
       - python3 android/build.py --unsigned --output build
 
-AllowedAPKSigningKeys: 
-  3e3238fa4a9ecbcfb5c4bb6b3e7166ad5af3b6e667b02b2015e3cc966d9cd089
+AllowedAPKSigningKeys: 3e3238fa4a9ecbcfb5c4bb6b3e7166ad5af3b6e667b02b2015e3cc966d9cd089
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+_tailscale[0-9.]+$
